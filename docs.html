@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>How to use · Leny's Makera_NC Editor</title>
+  <style>
+    :root {
+      --bg: #14120e;
+      --bg-2: #1c1914;
+      --panel: #221f19;
+      --line: #3a342a;
+      --text: #f3efe4;
+      --muted: #a39886;
+      --amber: #f0a202;
+      --amber-ink: #2a1c00;
+      color-scheme: dark;
+    }
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0;
+      background:
+        radial-gradient(900px 420px at 12% -10%, rgba(240, 162, 2, 0.09), transparent 55%),
+        var(--bg);
+      color: var(--text);
+      font-family: Bahnschrift, "Segoe UI Variable", "Segoe UI", sans-serif;
+      font-size: 17px;
+      line-height: 1.5;
+    }
+    a { color: var(--amber); }
+    header {
+      display: flex;
+      align-items: center;
+      gap: 0.8rem;
+      padding: 0.9rem 1.2rem;
+      border-bottom: 1px solid var(--line);
+    }
+    .mark {
+      width: 2rem;
+      height: 2rem;
+      display: grid;
+      place-items: center;
+      border-radius: 8px;
+      background: var(--amber);
+      color: var(--amber-ink);
+      font-weight: 720;
+    }
+    header strong { font-size: 1.02rem; }
+    header a.back { margin-left: auto; text-decoration: none; }
+    main {
+      width: min(760px, calc(100% - 2rem));
+      margin: 0 auto;
+      padding: 1.6rem 0 4rem;
+    }
+    h1 { font-size: 2rem; line-height: 1.15; margin: 0.2rem 0 0.4rem; }
+    h2 { font-size: 1.35rem; margin: 2rem 0 0.5rem; }
+    p, li { color: var(--text); }
+    .lead { color: var(--muted); margin-top: 0; }
+    .caveat {
+      margin: 1.2rem 0 0;
+      padding: 1.15rem 1.2rem 1.2rem;
+      border: 2px solid var(--amber);
+      border-radius: 16px;
+      background: #2a2112;
+    }
+    .caveat h2 {
+      margin: 0 0 0.55rem;
+      color: var(--amber);
+      font-size: 1.55rem;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+    .caveat p { margin: 0.55rem 0 0; font-size: 1.08rem; }
+    .caveat strong { color: #fff; }
+    code {
+      font-family: "Cascadia Mono", Consolas, monospace;
+      font-size: 0.92em;
+      color: #f6e7c3;
+    }
+    ul, ol { padding-left: 1.2rem; }
+    li + li { margin-top: 0.35rem; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 0.8rem 0 0;
+    }
+    th, td {
+      text-align: left;
+      vertical-align: top;
+      padding: 0.45rem 0.55rem;
+      border-bottom: 1px solid var(--line);
+    }
+    th { color: var(--muted); font-weight: 650; font-size: 0.85rem; }
+    footer {
+      color: var(--muted);
+      font-size: 0.92rem;
+      margin-top: 2.5rem;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <span class="mark">L</span>
+    <strong>Leny's Makera_NC Editor</strong>
+    <a class="back" href="index.html">Back to the editor</a>
+  </header>
+  <main>
+    <h1>How this works, and how to use it</h1>
+    <p class="lead">A guide for the offline editor in this folder. Double-click <code>index.html</code> to open the app. Double-click <code>docs.html</code> to open this page.</p>
+
+    <section class="caveat">
+      <h2>Read this before you cut</h2>
+      <p><strong>This tool is not a Makera product.</strong> It is an independent project. Makera did not make it, does not endorse it, and does not support it.</p>
+      <p><strong>There are no guarantees.</strong> This app is still in beta testing. A file it writes can be wrong. A wrong file can snap a bit, gouge the part, or damage the machine.</p>
+      <p><strong>Check the path on screen, and check the saved file, before you tool.</strong> Watch the moves. Confirm the tool, the origin, and the clearance. Do that every time, including on a file that worked yesterday.</p>
+      <p><strong>The author takes no responsibility for issues that arise from using this app. Use at your own risk.</strong></p>
+    </section>
+
+    <h2>What the editor is</h2>
+    <p>The editor opens a Makera Z1 <code>.nc</code> file and draws the toolpath. You can play it, park at a percent and save the rest, place drill holes and threads, or keep and drop regions of an existing path. It runs in the browser on your computer. It does not connect to the machine, and it does not send a file anywhere.</p>
+    <p>You save a new <code>.nc</code> file, then open that file the way you already open Makera Studio files. The saved file can still contain a machine line that says Makera Z1. That line is there so the controller accepts the file. It does not mean Makera made this editor.</p>
+    <p>Dotted names in the app have a short explanation. Hover one when a setting is unfamiliar.</p>
+
+    <h2>The screen</h2>
+    <p>Open NC, or drop a file on the window. A large file can take a moment. The plate and the path then show in the view.</p>
+    <ul>
+      <li><strong>Top</strong> looks down on the plate. Drag to slide the view. The wheel zooms. Double-click, or Fit, frames the part. Drawing a patch shape switches to this view.</li>
+      <li><strong>Iso</strong> is the 3D view. Drag to orbit. Shift-drag, or the right mouse button, slides the view.</li>
+      <li><strong>Rapids</strong> shows or hides the fast travel moves. <strong>Stock</strong> shows or hides the plate. The color bar is the depth of the cutting moves.</li>
+    </ul>
+    <p>Coordinates in this app are millimeters from the front-left corner of the top of the plate. X goes to the right. Y goes toward the back. Z is up. Zero on Z is the top surface, and cutting goes down into negative Z.</p>
+    <p>Play runs the path. The speed menu is how fast the picture runs, from 1× up to 5000×. The slider and the Go to box park at a percent of the path time. Prev lift and Next lift jump between retracts. The readout shows X, Y, Z, the tool, the feed, the spindle, and the current line.</p>
+    <p>Space starts and stops play. The left and right arrow keys nudge the playhead. Shift makes that nudge larger. Home and End jump to the start and the end. F frames the part.</p>
+    <p>The list under Job is one row per toolpath. Click the name to jump the playhead to that tool. The checkbox beside the name is for patches, described below.</p>
+
+    <h2>Save from a percent</h2>
+    <p>Play or scrub until the picture is where the cutter should start again. The filename becomes the percent, so 40% wants to save as <code>Makera_40_redo.NC</code>. You can type another name. Use the percent name puts the percent name back.</p>
+    <p>The saved file is a restart, not a chopped copy of the original. It selects the tool that was in use at that moment, starts the spindle, raises to clearance, travels to the restart X and Y, feeds down, and then runs the rest of the path. The Z1 may pause for a tool change before it moves. Confirm the work origin and the tool in the spindle before you run it.</p>
+    <p>Saving at 0% writes the whole program that is on screen. If you have applied a patch, that whole program is the patched one. Saving later in the file writes a restart of whatever is on screen.</p>
+
+    <h2>Drill holes</h2>
+    <p>Place hole drops a hole on the plate and selects it. A later hole copies the size, depth, peck, feed, spindle, and tool of the one you had selected, and it is offset so the holes do not stack. Each hole then keeps its own settings. Changing hole 2 does not change hole 1.</p>
+    <p>Select a hole in the list. X and Y move it. The slider steps by 0.1 mm. The number box under each slider is exact to 0.001 mm.</p>
+    <ul>
+      <li><strong>Size</strong> is a list of common drills, including the pilot hole for each common thread. M3 is a 2.5 mm hole. M6 is a 5 mm hole. 3.175 mm is a 1/8 inch drill. Custom is any other diameter.</li>
+      <li><strong>Diameter</strong> is the width of the hole, in millimeters. Match it to the bit.</li>
+      <li><strong>Depth</strong> is how far the tip goes below the top of the plate.</li>
+      <li><strong>Peck</strong> is how far the drill cuts before it lifts to clear chips. Peck 1 means drill 1 mm, pull up, then drill the next 1 mm. A deep hole in one push packs chips and can snap a small bit.</li>
+      <li><strong>Feed</strong> is how fast the drill pushes down, in millimeters per minute.</li>
+      <li><strong>Spindle</strong> is how fast the bit spins.</li>
+      <li><strong>Tool</strong> is the tool slot, T1, T2, and so on. Give each bit its own number so the machine stops between bits. Holes that share a number are drilled with the same bit.</li>
+      <li><strong>Through the plate</strong> drills the stock thickness plus 0.5 mm. Load a program first so the thickness is known.</li>
+    </ul>
+    <p>Clear this hole removes the highlighted hole. The Delete key does the same when you are not typing in a box. The other holes stay.</p>
+    <p>Save drill file writes a new NC file. The holes are peck-drilled with ordinary moves. The file name reflects the count and the size, such as <code>Makera_4holes_3.175mm.NC</code>.</p>
+
+    <h2>Threads</h2>
+    <p>Thread this hole opens the thread screen for that hole only. The hole and the thread are two different cuts, with two different bits. The drill makes a plain pilot. After the pilots, the file stops so you can put in a thread mill. The thread mill is smaller than the pilot. It drops into the center and spirals around to cut the grooves.</p>
+    <p>This is not a tap. The Z1 spindle is not locked to the Z move, so the file does not use a tapping cycle. The spiral is written as small straight moves.</p>
+    <p>The thread list shows the screws whose pilot matches the hole you drilled. A 2.5 mm hole offers M3. A 5 mm hole offers M6. If the hole is not a standard pilot, the list is Custom, and the note names the nearest screw. You can still type the numbers. Set the hole to this pilot writes that pilot into the hole diameter.</p>
+    <p>The thread mill must be smaller than the pilot, and its tool number must be different from the drill. The thread must not be deeper than the hole. Move the hole and the thread moves with it. Save drill file drills every pilot first, then cuts the threads with the other bit. A file of one shared screw is named for that screw, such as <code>Makera_4threads_M3.NC</code>.</p>
+
+    <h2>Patch a region</h2>
+    <p>A patch decides which existing cuts to keep. It does not draw a new outline for the machine to follow. A circle keeps or drops the toolpath that already falls inside that circle. It does not mill a circle.</p>
+    <p>On the top view, choose Rectangle, Circle, or Polygon.</p>
+    <ul>
+      <li><strong>Rectangle.</strong> Drag from one corner to the opposite corner.</li>
+      <li><strong>Circle.</strong> Drag from the center out to the rim.</li>
+      <li><strong>Polygon.</strong> Click each corner. Click the first corner again, or press Close polygon.</li>
+    </ul>
+    <p>The shape stays a draft. X and Y move its center. Size is the width in millimeters. For a circle, size is the diameter. A rectangle or polygon keeps the proportion you dragged. Inside keeps the cuts in the shape and drops the rest. Outside drops the cuts in the shape and keeps the rest. A line that crosses the edge is split there. Between the pieces that remain, the bit lifts to clearance, travels, and feeds back down.</p>
+    <p>The checkboxes in the job list choose the tools. Check one row, or several. Set Tools to Checked tools, and Apply cuts only those tools. The other tools stay whole. All tools cuts every bit. Clicking the name of a row still jumps the playhead. The checkbox is the patch choice.</p>
+    <p>Apply is the moment the path on screen changes. Until you press it, play and save still use the loaded path. Nothing is added or subtracted. If you move a shape after applying it, the path stays put until you press Apply again. Clear this shape removes that shape. If it had been applied, the path is rebuilt without it.</p>
+    <p>After Apply, save from the playhead writes the path you are looking at. Check that picture before you tool. A shape that would remove every cut is refused, and the path is left as it was.</p>
+
+    <h2>Before a tool goes in the spindle</h2>
+    <ol>
+      <li>You are opening the file you just saved, and you know whether it is a redo, a drill file, or a patched path.</li>
+      <li>The tool number in the file is the bit you are about to put in the spindle. A thread file will stop and wait for a second bit.</li>
+      <li>The work origin on the machine is the same corner this picture uses.</li>
+      <li>Clearance is high enough to cross clamps, fixtures, and the part.</li>
+      <li>You have watched the start of the path, above the material if you can.</li>
+    </ol>
+    <p>This app is beta software from an independent project. It can be wrong. Checking the path is part of using it.</p>
+
+    <h2>Names of saved files</h2>
+    <table>
+      <thead>
+        <tr><th>File</th><th>What it is</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code>Makera_40_redo.NC</code></td><td>Restart from 40% of the path that was on screen.</td></tr>
+        <tr><td><code>Makera_4holes_3.175mm.NC</code></td><td>Four holes, one diameter.</td></tr>
+        <tr><td><code>Makera_4holes.NC</code></td><td>Holes of more than one diameter.</td></tr>
+        <tr><td><code>Makera_4threads_M3.NC</code></td><td>Holes that all carry the same thread.</td></tr>
+        <tr><td><code>Makera_4holes_threaded.NC</code></td><td>Threaded holes that do not all share one screw.</td></tr>
+      </tbody>
+    </table>
+
+    <footer>
+      <p>Leny's Makera_NC Editor is an independent beta. It is not a Makera product. There are no guarantees. Check every path before you tool. The author takes no responsibility for issues that arise from using this app. Use at your own risk.</p>
+    </footer>
+  </main>
+</body>
+</html>

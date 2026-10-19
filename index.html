@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Leny's Makera_NC Editor</title>
+  <link rel="stylesheet" href="app.css?v=7" />
+</head>
+<body>
+  <header class="top">
+    <div class="brand">
+      <span class="mark">L</span>
+      <div>
+        <strong>Leny's Makera_NC Editor</strong>
+      </div>
+    </div>
+    <p class="filemeta" id="fileMeta">No program loaded</p>
+    <a class="doclink" href="docs.html">How to use</a>
+    <button type="button" class="primary" id="openBtn">Open NC</button>
+    <input id="file" type="file" accept=".nc,.NC,.gcode,.tap,.txt,text/plain" hidden />
+  </header>
+
+  <main>
+    <section class="stage" id="stage">
+      <canvas id="gl"></canvas>
+      <canvas id="overlay"></canvas>
+      <div class="viewbar">
+        <div class="seg" role="group" aria-label="View">
+          <button type="button" id="viewTop" aria-pressed="true">Top</button>
+          <button type="button" id="viewIso" aria-pressed="false">Iso</button>
+        </div>
+        <button type="button" id="rapidsBtn" aria-pressed="true">Rapids</button>
+        <button type="button" id="stockBtn" aria-pressed="true">Stock</button>
+        <button type="button" id="fitBtn">Fit</button>
+      </div>
+      <div class="legend" id="legend" hidden>
+        <span id="zTop">0</span>
+        <i></i>
+        <span id="zBot">0</span>
+        <em>Z</em>
+      </div>
+      <div class="empty" id="empty">
+        <p class="kicker">Leny's Makera_NC Editor</p>
+        <h1>Load a program and park the cutter where the job should resume.</h1>
+        <ol>
+          <li>Open an <span>.nc</span> file, or drop it on this window.</li>
+          <li>Play the path, drag the slider, or use Prev lift to park on a retract.</li>
+          <li>Save. <span>Makera_40_redo.NC</span> is the job from 40% onward.</li>
+        </ol>
+      </div>
+      <div class="loading" id="loading" hidden>
+        <div>
+          <strong id="loadTitle">Reading</strong>
+          <div class="bar"><span id="loadBar"></span></div>
+          <em id="loadSub"></em>
+        </div>
+      </div>
+    </section>
+
+    <aside>
+      <section>
+        <h2>Job</h2>
+        <p class="jobname" id="jobName">—</p>
+        <p class="quiet" id="jobFacts">Path time appears after a file loads.</p>
+        <ul class="paths" id="paths"></ul>
+      </section>
+
+      <section>
+        <h2>Playhead</h2>
+        <div class="percent-row">
+          <p class="percent" id="percentRead">0.0<span>%</span></p>
+          <label class="goto">Go to
+            <input id="percent" type="number" min="0" max="100" step="0.1" value="0" disabled />
+            <span>%</span>
+          </label>
+        </div>
+        <dl class="times">
+          <div><dt>Elapsed</dt><dd id="elapsed">0:00</dd></div>
+          <div><dt>Remaining</dt><dd id="remaining">0:00</dd></div>
+        </dl>
+        <dl class="dro">
+          <div><dt>X</dt><dd id="posX">—</dd></div>
+          <div><dt>Y</dt><dd id="posY">—</dd></div>
+          <div><dt>Z</dt><dd id="posZ">—</dd></div>
+        </dl>
+        <p class="toolrow" id="toolRow">No tool</p>
+        <p class="line" id="lineRead">Line —</p>
+        <pre id="gcode" class="gcode"> </pre>
+      </section>
+
+      <section class="drill">
+        <h2>Drill holes</h2>
+        <p class="quiet">Place a hole, then select it. Each hole keeps its own settings. Hover a dotted name to see what it means.</p>
+        <button type="button" class="primary savebtn" id="placeHole" data-hint-title="Place hole" data-hint="Adds a hole and selects it. The new hole copies the size, depth, peck, feed, spindle, and tool of the one you had selected.">Place hole</button>
+        <ul class="holelist" id="holeList"></ul>
+        <div class="mover" id="holeMove" hidden>
+          <p class="quiet" id="holeMoveTitle">Hole 1</p>
+          <div class="fields">
+            <label data-hint-title="Size" data-hint="Common drill sizes, plus the pilot hole for each thread. A size with a screw name is the hole that screw wants: M3 is 2.5 mm, M4 is 3.3 mm, M6 is 5 mm. Choosing one fills in Diameter. Custom is for a bit that is not in the list. 3.175 mm is a 1/8 inch drill.">
+              <span class="hinted">Size</span>
+              <select id="drillSize"></select>
+            </label>
+            <label data-hint-title="Diameter" data-hint="Width of the hole, in millimeters. Match it to the bit in the spindle. The circle on the plate is drawn at this size.">
+              <span class="hinted">Diameter</span>
+              <input id="drillDia" type="number" min="0.1" step="0.025" value="3.175" />
+            </label>
+            <label data-hint-title="Depth" data-hint="How far the drill goes down from the top of the plate, in millimeters. A depth of 3 stops the tip 3 mm below the surface.">
+              <span class="hinted">Depth</span>
+              <input id="drillDepth" type="number" min="0.1" step="0.1" value="3" />
+            </label>
+            <label data-hint-title="Peck" data-hint="How far the drill cuts before it lifts to clear chips, in millimeters. A deep hole in one push packs chips and can snap the bit. Peck 1 means drill 1 mm, pull up, then drill the next 1 mm, until the depth is reached. 0.5–1 mm is a safe start for a small bit.">
+              <span class="hinted">Peck</span>
+              <input id="drillPeck" type="number" min="0.1" step="0.1" value="1" />
+            </label>
+            <label data-hint-title="Feed" data-hint="How fast the drill pushes down, in millimeters per minute. 200 is a slow plunge for a small bit in aluminum. A higher feed finishes sooner and is harder on a thin bit.">
+              <span class="hinted">Feed</span>
+              <input id="drillFeed" type="number" min="1" step="10" value="200" />
+            </label>
+            <label data-hint-title="Spindle" data-hint="How fast the bit spins, in revolutions per minute. 12000 is a normal speed for a small drill on the Z1. The file turns the spindle on at this speed before it drills.">
+              <span class="hinted">Spindle</span>
+              <input id="drillSpindle" type="number" min="1000" step="500" value="12000" />
+            </label>
+            <label data-hint-title="Tool" data-hint="The tool slot for this hole: T1, T2, and so on. Give each bit its own number so the Z1 stops for the change. Holes that share a tool number are drilled with the same bit.">
+              <span class="hinted">Tool</span>
+              <input id="drillTool" type="number" min="1" step="1" value="1" />
+            </label>
+            <label class="check" data-hint-title="Through the plate" data-hint="Drills the full thickness and 0.5 mm past the bottom so the hole breaks through. Depth is filled from the stock and locked while this is checked. Load a program first so the plate thickness is known.">
+              <input id="drillThrough" type="checkbox" />
+              <span class="hinted">Through the plate</span>
+            </label>
+          </div>
+          <label class="axis" data-hint-title="X position" data-hint="Left-right position of this hole, in millimeters, from the front-left corner of the top of the plate. The slider steps by 0.1 mm. The box under it is exact to 0.001 mm.">
+            <span class="hinted">X</span>
+            <input id="holeX" type="range" min="0" max="100" step="0.1" value="0" aria-label="Hole X" />
+            <input id="holeXNum" type="number" step="0.001" value="0" aria-label="Hole X value" />
+          </label>
+          <label class="axis" data-hint-title="Y position" data-hint="Front-back position of this hole, in millimeters, from the front-left corner of the top of the plate. The slider steps by 0.1 mm. The box under it is exact to 0.001 mm.">
+            <span class="hinted">Y</span>
+            <input id="holeY" type="range" min="0" max="100" step="0.1" value="0" aria-label="Hole Y" />
+            <input id="holeYNum" type="number" step="0.001" value="0" aria-label="Hole Y value" />
+          </label>
+        </div>
+        <button type="button" class="threadbtn" id="threadOpen" hidden data-hint-title="Thread this hole" data-hint="Opens the thread screen for this hole only. The drill makes a plain pilot. A different bit, the thread mill, spirals inside that pilot and cuts the grooves. Move the hole and the thread moves with it.">Thread this hole</button>
+        <button type="button" class="texty" id="holeClear" disabled data-hint-title="Clear this hole" data-hint="Removes the highlighted hole. The other holes stay where they are.">Clear this hole</button>
+        <button type="button" class="primary savebtn" id="drillSave" disabled data-hint-title="Save drill file" data-hint="Writes an NC file for these holes. Each hole is peck-drilled with its own bit. If a hole has a thread, the file then stops for a thread mill and cuts that thread as a second operation.">Save drill file</button>
+      </section>
+
+      <section class="patch">
+        <h2>Patch</h2>
+        <p class="quiet">Draw on the top view. The shape is only a drawing until you press Apply. Check tools in the job list to cut just those, or leave Tools on All tools.</p>
+        <div class="seg" role="group" aria-label="Shape">
+          <button type="button" id="patchRect" aria-pressed="false" data-hint-title="Rectangle" data-hint="Drag from one corner to the opposite corner on the top view. The shape stays a draft until Apply. Press the button again to put the pen down.">Rectangle</button>
+          <button type="button" id="patchCircle" aria-pressed="false" data-hint-title="Circle" data-hint="Drag from the center out to the rim. The shape stays a draft until Apply. Press the button again to put the pen down.">Circle</button>
+          <button type="button" id="patchPoly" aria-pressed="false" data-hint-title="Polygon" data-hint="Click each corner. Click the first corner again, or press Close polygon. The shape stays a draft until Apply.">Polygon</button>
+        </div>
+        <button type="button" class="texty" id="patchClose" hidden data-hint-title="Close polygon" data-hint="Joins the last corner to the first and keeps the polygon as a draft.">Close polygon</button>
+        <ul class="holelist" id="patchList"></ul>
+        <div class="mover" id="patchMove" hidden>
+          <p class="quiet" id="patchTitle">Shape 1</p>
+          <label data-hint-title="Tools" data-hint="All tools runs the shape on every bit in the job. Checked tools uses the boxes in the job list at the top. A checked row is the only tool the shape cuts. The other tools stay whole. The path changes when you press Apply.">
+            <span class="hinted">Tools</span>
+            <select id="patchScope">
+              <option value="all">All tools</option>
+              <option value="picked">Checked tools</option>
+            </select>
+          </label>
+          <label data-hint-title="Keep" data-hint="Inside keeps the cuts in the shape and drops the rest. Outside drops the cuts in the shape and keeps the rest. The path changes when you press Apply.">
+            <span class="hinted">Keep</span>
+            <select id="patchMode">
+              <option value="inside">Inside</option>
+              <option value="outside">Outside</option>
+            </select>
+          </label>
+          <label class="axis" data-hint-title="X position" data-hint="Left-right center of this shape, in millimeters. The slider steps by 0.1 mm. The box under it is exact to 0.001 mm. Moving it does not change the path until Apply.">
+            <span class="hinted">X</span>
+            <input id="patchX" type="range" min="0" max="100" step="0.1" value="0" aria-label="Shape X" />
+            <input id="patchXNum" type="number" step="0.001" value="0" aria-label="Shape X value" />
+          </label>
+          <label class="axis" data-hint-title="Y position" data-hint="Front-back center of this shape, in millimeters. The slider steps by 0.1 mm. The box under it is exact to 0.001 mm. Moving it does not change the path until Apply.">
+            <span class="hinted">Y</span>
+            <input id="patchY" type="range" min="0" max="100" step="0.1" value="0" aria-label="Shape Y" />
+            <input id="patchYNum" type="number" step="0.001" value="0" aria-label="Shape Y value" />
+          </label>
+          <label class="axis" data-hint-title="Size" data-hint="Width of the shape in millimeters. For a circle this is the diameter. A rectangle or polygon keeps the proportion you drew. Changing the size does not change the path until Apply.">
+            <span class="hinted">Size</span>
+            <input id="patchSize" type="range" min="0.2" max="100" step="0.1" value="10" aria-label="Shape size" />
+            <input id="patchSizeNum" type="number" min="0.05" step="0.001" value="10" aria-label="Shape size value" />
+          </label>
+        </div>
+        <button type="button" class="primary savebtn" id="patchApply" disabled data-hint-title="Apply" data-hint="Changes this job. Checked tools limits the cut to the tools you marked in the job list. All tools cuts every bit. Inside keeps the cuts in the shape. Outside drops them. Until you press Apply, the shape is only a drawing.">Apply</button>
+        <button type="button" class="texty" id="patchClear" disabled data-hint-title="Clear this shape" data-hint="Removes the highlighted shape. A draft that was never applied leaves the path alone. A shape that was applied is taken back out of the path.">Clear this shape</button>
+      </section>
+
+      <section class="save">
+        <h2>Save from playhead</h2>
+        <label class="fname">Filename
+          <input id="filename" type="text" spellcheck="false" value="Makera_0_redo.NC" disabled />
+        </label>
+        <button type="button" class="texty" id="nameReset" disabled>Use the percent name</button>
+        <button type="button" class="primary savebtn" id="saveBtn" disabled>Save redo file</button>
+        <p class="quiet" id="saveNote">The number in the name is the percent this file continues from. It selects that tool, starts the spindle, lifts to clearance, crosses to the restart XY, feeds down, then runs the rest of the path. The Z1 may pause for a tool change before it moves.</p>
+        <p class="status" id="status"></p>
+      </section>
+    </aside>
+  </main>
+
+  <footer class="transport">
+    <button type="button" class="play" id="play" aria-label="Play" disabled>
+      <span class="glyph"></span>
+    </button>
+    <button type="button" id="prevLift" disabled>Prev lift</button>
+    <button type="button" id="nextLift" disabled>Next lift</button>
+    <input id="scrub" type="range" min="0" max="10000" value="0" disabled aria-label="Job percent" />
+    <label class="speed">Speed
+      <select id="speed" disabled>
+        <option value="1">1×</option>
+        <option value="10">10×</option>
+        <option value="60">60×</option>
+        <option value="300" selected>300×</option>
+        <option value="1000">1000×</option>
+        <option value="5000">5000×</option>
+      </select>
+    </label>
+    <p class="hint">Space plays. Arrows nudge. Drag to pan, and drag in Iso to orbit.</p>
+  </footer>
+
+  <div id="threadScrim" class="scrim" hidden>
+    <div class="sheet" role="dialog" aria-labelledby="threadTitle">
+      <div class="sheet-head">
+        <h2 id="threadTitle">Thread hole 1</h2>
+        <button type="button" class="texty" id="threadClose">Close</button>
+      </div>
+      <p class="callout">The hole and the thread are two different cuts, with two different bits. The drill only makes a plain pilot hole. After that, the machine changes tools. A thread mill, which is smaller than the pilot, drops into the center and spirals around to cut the grooves. Do not try to cut the thread with the drill bit.</p>
+      <div class="fields">
+        <label class="span" data-hint-title="Thread" data-hint="Only the screws whose pilot matches this drilled hole. A 2.5 mm hole offers M3. A 5 mm hole offers M6. If the hole is not a standard pilot, the list is just Custom, and you can type the numbers yourself.">
+          <span class="hinted">Thread</span>
+          <select id="threadPreset"></select>
+        </label>
+        <label data-hint-title="Major diameter" data-hint="The named size of the screw, in millimeters. M3 means 3 mm across the outside of the screw. This is not the drill size. The drill is smaller.">
+          <span class="hinted">Major</span>
+          <input id="threadMajor" type="number" min="0.2" step="0.001" value="3" />
+        </label>
+        <label data-hint-title="Pitch" data-hint="Distance from one groove to the next, in millimeters. M3 coarse is 0.5 mm. Each full circle, the thread mill drops by this amount.">
+          <span class="hinted">Pitch</span>
+          <input id="threadPitch" type="number" min="0.05" step="0.001" value="0.5" />
+        </label>
+        <label data-hint-title="Pilot" data-hint="The plain hole the drill should make before threading. It is smaller than the screw. An M3 screw wants about a 2.5 mm pilot, not a 3 mm hole. This number does not change the hole until you use the button below.">
+          <span class="hinted">Pilot</span>
+          <input id="threadPilot" type="number" min="0.1" step="0.001" value="2.5" />
+        </label>
+        <label data-hint-title="Thread depth" data-hint="How far the grooves run down from the top of the plate. On a blind hole, keep this shorter than the drilled depth so the thread mill does not hit the bottom. A through hole can be threaded the full thickness.">
+          <span class="hinted">Depth</span>
+          <input id="threadDepth" type="number" min="0.1" step="0.1" value="2.5" />
+        </label>
+        <button type="button" class="texty span" id="threadUsePilot" data-hint-title="Set the hole to this pilot" data-hint="Changes this hole's drill diameter to the pilot above. The drill bit and the thread mill stay two different tools.">Set the hole to this pilot</button>
+        <label data-hint-title="Thread mill" data-hint="Diameter of the thread mill, not the drill. It must be smaller than the pilot so it can drop into the hole, then spiral outward and cut the grooves.">
+          <span class="hinted">Thread mill</span>
+          <input id="threadMill" type="number" min="0.1" step="0.001" value="1.5" />
+        </label>
+        <label data-hint-title="Thread tool" data-hint="Tool slot for the thread mill. Use a different number than the drill. The machine will stop after the pilots and wait for you to put the thread mill in.">
+          <span class="hinted">Tool</span>
+          <input id="threadTool" type="number" min="1" step="1" value="2" />
+        </label>
+        <label data-hint-title="Thread feed" data-hint="How fast the thread mill moves along the spiral, in millimeters per minute. This is the thread mill's feed, not the drill's plunge feed.">
+          <span class="hinted">Feed</span>
+          <input id="threadFeed" type="number" min="1" step="10" value="200" />
+        </label>
+        <label data-hint-title="Thread spindle" data-hint="How fast the thread mill spins, in revolutions per minute. This starts when the thread mill is in the spindle, after the drill is done.">
+          <span class="hinted">Spindle</span>
+          <input id="threadSpindle" type="number" min="1000" step="500" value="12000" />
+        </label>
+      </div>
+      <p class="quiet" id="threadNote"></p>
+      <button type="button" class="primary savebtn" id="threadApply">Save thread on this hole</button>
+      <button type="button" class="texty" id="threadRemove">Remove thread</button>
+    </div>
+  </div>
+  <div id="hint" class="hintpop" hidden role="tooltip">
+    <p class="hint-title" id="hintTitle"></p>
+    <p class="hint-body" id="hintBody"></p>
+  </div>
+  <script src="makera.js?v=7"></script>
+  <script src="app.js?v=9"></script>
+</body>
+</html>

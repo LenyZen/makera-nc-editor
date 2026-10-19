@@ -1,0 +1,6 @@
+*.NC
+*.nc
+*.gcode
+*.tap
+Thumbs.db
+.DS_Store
