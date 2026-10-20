@@ -289,6 +289,301 @@
     return lines.join(nl) + nl;
   }
 
+  function findToolpathMarker(text, number) {
+    var key = ";@MKR|TOOLPATH_START|toolpath_number=" + number;
+    var from = 0;
+    while (from < text.length) {
+      var at = text.indexOf(key, from);
+      if (at < 0) return -1;
+      var c = text.charCodeAt(at + key.length);
+      if (!(c >= 48 && c <= 57)) return at;
+      from = at + key.length;
+    }
+    return -1;
+  }
+
+  function lineWords(text, start) {
+    var nl = text.indexOf("\n", start);
+    if (nl < 0) nl = text.length;
+    var end = nl;
+    if (end > start && text.charCodeAt(end - 1) === 13) end--;
+    return { words: parseWords(text, start, end), next: nl < text.length ? nl + 1 : text.length, end: end };
+  }
+
+  function lineNumberAt(text, offset) {
+    var n = 1;
+    var i = 0;
+    var end = offset > text.length ? text.length : (offset > 0 ? offset : 0);
+    while (i < end) {
+      var nl = text.indexOf("\n", i);
+      if (nl < 0 || nl >= end) break;
+      n++;
+      i = nl + 1;
+    }
+    return n;
+  }
+
+  // True when a short angle index, or a G92 angle reset, happens before Z leaves clearance.
+  function angleGate(text, from, clearanceZ, absolute) {
+    var i = from;
+    var seen = 0;
+    while (i < text.length && seen < 80) {
+      seen++;
+      var row = lineWords(text, i);
+      i = row.next;
+      var w = row.words;
+      if (!w.g.length && w.a == null && w.z == null && w.x == null && w.y == null && !w.m.length && w.t == null && w.s == null) continue;
+      var isG92 = false;
+      for (var g = 0; g < w.g.length; g++) {
+        if (Math.round(w.g[g]) === 92) isG92 = true;
+      }
+      var drops = false;
+      if (w.z != null) {
+        if (!absolute) drops = true;
+        else if (w.z < clearanceZ - 1) drops = true;
+      }
+      if (isG92 && w.a != null && !drops) return { ok: true, kind: "g92" };
+      if (w.a != null && !drops) {
+        if (Math.abs(w.a) > 720) return { ok: false, kind: "long" };
+        return { ok: true, kind: "short" };
+      }
+      if (drops) return { ok: false, kind: "plunge" };
+    }
+    return { ok: false, kind: "none" };
+  }
+
+  function bodyStartsTool(text, from, clearanceZ, absolute) {
+    var i = from;
+    var seen = 0;
+    var sawT = false;
+    var sawM6 = false;
+    var sawSpin = false;
+    while (i < text.length && seen < 80) {
+      seen++;
+      var row = lineWords(text, i);
+      i = row.next;
+      var w = row.words;
+      if (w.t != null) sawT = true;
+      for (var m = 0; m < w.m.length; m++) {
+        var mi = Math.round(w.m[m]);
+        if (mi === 6) sawM6 = true;
+        if (mi === 3 || mi === 4) sawSpin = true;
+      }
+      if (w.s != null) sawSpin = true;
+      var drops = false;
+      if (w.z != null) {
+        if (!absolute) drops = true;
+        else if (w.z < clearanceZ - 1) drops = true;
+      }
+      if (drops) break;
+    }
+    return sawT && sawM6 && sawSpin;
+  }
+
+  function toolpathAt(program, segIndex) {
+    var tps = program.meta && program.meta.toolpaths;
+    var found = null;
+    if (!tps) return null;
+    for (var i = 0; i < tps.length; i++) {
+      if (tps[i].startSeg == null) continue;
+      if (tps[i].startSeg <= segIndex) found = tps[i];
+    }
+    return found;
+  }
+
+  function planRotaryRedo(text, program, time) {
+    var sample = sampleAt(program, Math.min(time, program.totalTime || 0));
+    var path = toolpathAt(program, sample.index);
+    var minSeg = path && path.startSeg != null ? path.startSeg : 0;
+    var lifts = program.lifts;
+    if (lifts && lifts.length) {
+      var best = -1;
+      var lo = 0;
+      var hi = lifts.length - 1;
+      while (lo <= hi) {
+        var mid = (lo + hi) >> 1;
+        var seg = lifts[mid];
+        var t0 = seg === 0 ? 0 : program.tEnd[seg - 1];
+        if (t0 <= time + 1e-4) {
+          best = mid;
+          lo = mid + 1;
+        } else hi = mid - 1;
+      }
+      for (var i = best; i >= 0; i--) {
+        var s = lifts[i];
+        if (s < minSeg) break;
+        var zEnd = program.z[s + 1];
+        var gate = angleGate(text, program.lineStart[s], zEnd, program.absolute[s] !== 0);
+        if (!gate.ok) continue;
+        var liftWords = lineWords(text, program.lineStart[s]).words;
+        var angleOnLift = liftWords.a != null && Math.abs(liftWords.a) <= 720;
+        var stateSeg = Math.min(s + 1, program.n - 1);
+        return {
+          kind: "pass",
+          bodyStart: angleOnLift ? program.lineStart[s] : program.lineEnd[s],
+          time: program.tEnd[s],
+          x: program.x[s + 1],
+          y: program.y[s + 1],
+          z: zEnd,
+          stateSeg: stateSeg
+        };
+      }
+    }
+
+    var startSeg = Math.min(minSeg, Math.max(0, program.n - 1));
+    var motionAt = program.n ? program.lineStart[startSeg] : 0;
+    var marker = path ? findToolpathMarker(text, path.number) : -1;
+    var region = marker >= 0 ? marker : motionAt;
+    var bodyStart = region;
+    var z0 = program.n ? program.z[startSeg] : 0;
+    var absolute = program.n ? program.absolute[startSeg] !== 0 : true;
+    if (marker >= 0 && !angleGate(text, marker, z0, absolute).ok) {
+      var scan = marker;
+      var g92 = -1;
+      while (scan < motionAt && scan < text.length) {
+        var row = lineWords(text, scan);
+        var isG92 = false;
+        for (var g = 0; g < row.words.g.length; g++) {
+          if (Math.round(row.words.g[g]) === 92 && row.words.a != null) isG92 = true;
+        }
+        if (isG92) g92 = scan;
+        if (row.next <= scan) break;
+        scan = row.next;
+      }
+      if (g92 >= 0) bodyStart = g92;
+    }
+    var gateB = angleGate(text, bodyStart, z0, absolute);
+    var restartTime = 0;
+    if (path && path.startTime != null) restartTime = path.startTime;
+    else if (startSeg > 0) restartTime = program.tEnd[startSeg - 1];
+    if (!gateB.ok && restartTime > 1e-3) return { refused: true };
+    return {
+      kind: "toolpath",
+      bodyStart: bodyStart,
+      time: restartTime,
+      x: program.n ? program.x[startSeg] : 0,
+      y: program.n ? program.y[startSeg] : 0,
+      z: z0,
+      stateSeg: startSeg,
+      refused: false
+    };
+  }
+
+  function buildRotaryRedo(text, program, time, sourceName) {
+    var total = program.totalTime || 0;
+    var parked = total > 0 ? (time / total) * 100 : 0;
+    var plan = planRotaryRedo(text, program, time);
+    if (plan.refused) {
+      return {
+        refused: true,
+        message: "The redo was not saved. Starting at this spot would spin the rotary through the whole angle. Save the full program from the start of the file.",
+        name: redoName(0),
+        content: "",
+        percent: 0,
+        parkedPercent: parked
+      };
+    }
+    if (!(plan.time > 1e-3)) {
+      return {
+        name: redoName(0),
+        content: text,
+        percent: 0,
+        rounded: 0,
+        passthrough: true,
+        rotaryRewind: true,
+        rotaryKind: "full",
+        parkedPercent: parked,
+        remainingTime: total,
+        lineNo: program.n ? program.lineNo[0] : 0,
+        x: program.n ? program.x[0] : 0,
+        y: program.n ? program.y[0] : 0,
+        z: program.n ? program.z[0] : 0,
+        tool: program.n ? program.tool[0] : 0,
+        feed: program.n ? program.feed[0] : 0,
+        spindle: program.n ? program.spindle[0] : 0
+      };
+    }
+
+    var state = plan.stateSeg;
+    var tool = program.tool[state];
+    var feed = program.feed[state];
+    var spindle = program.spindle[state];
+    var spindleCmd = program.spindleCmd[state];
+    var coolant = program.coolant[state];
+    var absolute = program.absolute[state] !== 0;
+    var metric = program.metric[state] !== 0;
+    var clear = program.safeZ;
+    if (!(clear >= plan.z)) clear = Math.max(plan.z, program.bounds.maxZ);
+    if (clear < plan.z) clear = plan.z;
+    var bring = bodyStartsTool(text, plan.bodyStart, clear, absolute);
+    var nl = "\r\n";
+    var code = "";
+    code += "G90 " + (metric ? "G21" : "G20") + nl;
+    if (!bring) {
+      if (tool > 0) code += "T" + tool + " M6" + nl;
+      if (coolant === 7) code += "M7" + nl;
+      else if (coolant === 8) code += "M8" + nl;
+      else if (coolant === 9) code += "M9" + nl;
+      if (spindleCmd === 3) code += "S" + Math.round(spindle) + " M3" + nl;
+      else if (spindleCmd === 4) code += "S" + Math.round(spindle) + " M4" + nl;
+      else code += "M5" + nl;
+    }
+    code += "G0 Z" + fmt(clear) + nl;
+    code += "G0 X" + fmt(plan.x) + " Y" + fmt(plan.y) + nl;
+    if (!absolute) code += "G91" + nl;
+
+    var body = stripThumbnail(text.slice(plan.bodyStart));
+    if (!/\bM0*2\b/.test(body) && !/\bM30\b/.test(body)) body += "M02\r\n";
+
+    var restartAt = plan.time < time ? plan.time : time;
+    var restartPct = total > 0 ? (restartAt / total) * 100 : 0;
+    var safeName = String(sourceName || "program.nc").replace(/[\r\n]/g, " ");
+    var why = plan.kind === "toolpath"
+      ? [
+          "; This finish does not come back to an end of X, so the restart is the beginning of that finish.",
+          "; The angle reset already in the file runs at clearance, before the cut."
+        ]
+      : [
+          "; Restart is the lifted end of this pass. The percent is earlier than the park.",
+          "; The angle is set at clearance, then the file feeds down."
+        ];
+    var comments = [
+      "; REDO",
+      "; source: " + safeName,
+      "; parked_percent: " + parked.toFixed(1),
+      "; restart_percent: " + restartPct.toFixed(1),
+      "; resume_line: " + lineNumberAt(text, plan.bodyStart),
+      "; resume_position: X" + fmt(plan.x) + " Y" + fmt(plan.y) + " Z" + fmt(clear),
+      "; tool: T" + tool + "  spindle: S" + Math.round(spindle) + " M" + spindleCmd + "  feed: F" + fmt(feed),
+      "; clearance_z: " + fmt(clear)
+    ].concat(why).concat([
+      "; Confirm the work origin and the tool in the spindle before running.",
+      ""
+    ]).join(nl);
+
+    var header = extractHeader(text);
+    var content = header + (header && !/\n$/.test(header) ? nl : "") + comments + code + body;
+    return {
+      name: redoName(restartPct),
+      content: content,
+      percent: restartPct,
+      rounded: Math.round(restartPct),
+      passthrough: false,
+      rotaryRewind: true,
+      rotaryKind: plan.kind,
+      parkedPercent: parked,
+      remainingTime: Math.max(0, total - restartAt),
+      lineNo: lineNumberAt(text, plan.bodyStart),
+      x: plan.x,
+      y: plan.y,
+      z: clear,
+      tool: tool,
+      feed: feed,
+      spindle: spindle,
+      spindleCmd: spindleCmd
+    };
+  }
+
   function buildRedo(text, program, time, sourceName) {
     var total = program.totalTime || 0;
     var pct = total > 0 ? (time / total) * 100 : 0;
@@ -310,6 +605,8 @@
         spindle: program.n ? program.spindle[0] : 0
       };
     }
+
+    if (program.rotary && program.a) return buildRotaryRedo(text, program, time, sourceName);
 
     var sample = sampleAt(program, Math.min(time, total));
     var info = remainingFrom(program, sample);
@@ -701,7 +998,9 @@
           number: num(kv.number, 0),
           name: kv.name || "",
           diameter: num(kv.diameter, 0),
-          type: kv.type || ""
+          type: kv.type || "",
+          tipDiameter: num(kv.tipdiameter != null ? kv.tipdiameter : kv.tipDiameter, 0),
+          halfAngle: num(kv.halfAngle != null ? kv.halfAngle : kv.halfangle, 0)
         });
       } else if (key === "TOOLPATH") {
         meta.toolpaths.push({
@@ -1533,9 +1832,224 @@
     };
   }
 
+  function lastPassIndex(prog) {
+    var list = prog.meta && prog.meta.toolpaths ? prog.meta.toolpaths : [];
+    var start = 0;
+    var found = false;
+    for (var t = 0; t < list.length; t++) {
+      if (list[t].startSeg == null) continue;
+      if (!found || list[t].startSeg >= start) {
+        start = list[t].startSeg;
+        found = true;
+      }
+    }
+    if (!found) return 0;
+    var i = prog.n - 1;
+    while (i >= start && prog.rapid[i]) i--;
+    while (i >= start && !prog.rapid[i]) i--;
+    return i + 1;
+  }
+
+  function finishToolRecord(prog, from) {
+    var toolNum = prog.tool && from < prog.n ? prog.tool[from] : 0;
+    var list = prog.meta && prog.meta.toolpaths ? prog.meta.toolpaths : [];
+    var best = -1;
+    for (var t = 0; t < list.length; t++) {
+      if (list[t].startSeg == null || list[t].startSeg > from) continue;
+      if (list[t].startSeg >= best) {
+        best = list[t].startSeg;
+        toolNum = list[t].tool;
+      }
+    }
+    var tools = prog.meta && prog.meta.tools ? prog.meta.tools : [];
+    for (var i = 0; i < tools.length; i++) {
+      if (tools[i].number === toolNum) return tools[i];
+    }
+    return { number: toolNum, name: "", diameter: 0, type: "", tipDiameter: 0, halfAngle: 0 };
+  }
+
+  // Skin along the last rotary pass. One radius per angle throws away the far
+  // side of a section whenever the near side lands on that same angle, which is
+  // what was eating the carving between the thick and thin parts of this job.
+  function buildFinishShape(program, axis) {
+    if (!program || !program.n || !program.rotary || !program.a) return null;
+    var from = lastPassIndex(program);
+    if (!(from < program.n)) return null;
+    var axisY = axis && isFinite(axis.y) ? axis.y : 0;
+    var axisZ = axis && isFinite(axis.z) ? axis.z : 0;
+    var limit = axis && axis.radius > 0 ? axis.radius + 1.5 : 1e6;
+    var tool = finishToolRecord(program, from);
+    var n = program.n;
+    var px = program.x;
+    var py = program.y;
+    var pz = program.z;
+    var pa = program.a;
+    var rapid = program.rapid;
+    var tipR = tool.tipDiameter > 0 ? tool.tipDiameter / 2 : 0;
+    var inch = program.meta && /in/i.test(program.meta.unit || "");
+    var hw = tipR > 0.04 ? tipR : 0.15;
+    var minStep = 0.16;
+    if (inch) {
+      hw /= 25.4;
+      minStep /= 25.4;
+    }
+    var breakStep = Math.max(2.5, hw * 12);
+    var runs = [];
+    var run = [];
+    function wrapPoint(x, y, z, aDeg) {
+      var dy = y - axisY;
+      var dz = z - axisZ;
+      var radius = Math.hypot(dy, dz);
+      if (radius > limit) return null;
+      var ang = Math.atan2(dy, dz) + aDeg * 0.017453292519943295;
+      return [x, axisY + radius * Math.sin(ang), axisZ + radius * Math.cos(ang)];
+    }
+    function flush() {
+      if (run.length > 1) runs.push(run);
+      run = [];
+    }
+    function keep(p) {
+      if (!p) {
+        flush();
+        return;
+      }
+      var m = run.length;
+      if (!m) {
+        run.push(p);
+        return;
+      }
+      var q = run[m - 1];
+      var dist = Math.hypot(p[0] - q[0], p[1] - q[1], p[2] - q[2]);
+      if (dist < minStep) return;
+      if (dist > breakStep) {
+        flush();
+        run.push(p);
+        return;
+      }
+      run.push(p);
+    }
+    var i;
+    var s;
+    for (i = from; i < n; i++) {
+      if (rapid[i]) {
+        flush();
+        continue;
+      }
+      var dx = px[i + 1] - px[i];
+      var dy = py[i + 1] - py[i];
+      var dz = pz[i + 1] - pz[i];
+      var dA = pa[i + 1] - pa[i];
+      var chord = Math.hypot(dx, dy, dz);
+      var steps = Math.max(1, Math.ceil(Math.abs(dA) / 3));
+      if (chord > 0) steps = Math.max(steps, Math.ceil(chord / minStep));
+      if (steps > 160) steps = 160;
+      for (s = 0; s <= steps; s++) {
+        var u = s / steps;
+        keep(wrapPoint(px[i] + dx * u, py[i] + dy * u, pz[i] + dz * u, pa[i] + dA * u));
+      }
+    }
+    flush();
+    var quads = 0;
+    for (i = 0; i < runs.length; i++) quads += runs[i].length - 1;
+    if (quads < 2) return null;
+    var data = new Float32Array(quads * 6 * 6);
+    var o = 0;
+    var nrmY = 0;
+    var nrmZ = 1;
+    function put(p, side, sign, n) {
+      data[o] = p[0] + side[0] * hw * sign;
+      data[o + 1] = p[1] + side[1] * hw * sign;
+      data[o + 2] = p[2] + side[2] * hw * sign;
+      data[o + 3] = n[0];
+      data[o + 4] = n[1];
+      data[o + 5] = n[2];
+      o += 6;
+    }
+    for (i = 0; i < runs.length; i++) {
+      var pts = runs[i];
+      var prevS = null;
+      for (var k = 0; k < pts.length - 1; k++) {
+        var p = pts[k];
+        var q = pts[k + 1];
+        var ry = p[1] - axisY;
+        var rz = p[2] - axisZ;
+        var rl = Math.hypot(ry, rz);
+        if (rl > 1e-4) {
+          nrmY = ry / rl;
+          nrmZ = rz / rl;
+        } else {
+          nrmY = 0;
+          nrmZ = 1;
+        }
+        var tx = q[0] - p[0];
+        var ty = q[1] - p[1];
+        var tz = q[2] - p[2];
+        var sx = ty * nrmZ - tz * nrmY;
+        var sy = 0 - tx * nrmZ;
+        var sz = tx * nrmY;
+        var sl = Math.hypot(sx, sy, sz);
+        if (sl < 1e-6) {
+          sx = 0;
+          sy = -nrmZ;
+          sz = nrmY;
+          sl = Math.hypot(sy, sz) || 1;
+        }
+        sx /= sl;
+        sy /= sl;
+        sz /= sl;
+        if (prevS && sx * prevS[0] + sy * prevS[1] + sz * prevS[2] < 0) {
+          sx = -sx;
+          sy = -sy;
+          sz = -sz;
+        }
+        var side = [sx, sy, sz];
+        prevS = side;
+        var nx = ty * sz - tz * sy;
+        var ny = tz * sx - tx * sz;
+        var nz = tx * sy - ty * sx;
+        var nl = Math.hypot(nx, ny, nz);
+        if (!(nl > 1e-8)) {
+          nx = 0;
+          ny = nrmY;
+          nz = nrmZ;
+        } else {
+          nx /= nl;
+          ny /= nl;
+          nz /= nl;
+          if (ny * nrmY + nz * nrmZ < 0) {
+            nx = -nx;
+            ny = -ny;
+            nz = -nz;
+          }
+        }
+        var nrm = [nx, ny, nz];
+        put(p, side, 1, nrm);
+        put(p, side, -1, nrm);
+        put(q, side, -1, nrm);
+        put(p, side, 1, nrm);
+        put(q, side, -1, nrm);
+        put(q, side, 1, nrm);
+      }
+    }
+    return {
+      data: data,
+      count: quads * 6,
+      from: from,
+      tool: {
+        number: tool.number || 0,
+        name: tool.name || "",
+        type: tool.type || "",
+        diameter: tool.diameter || 0,
+        tipDiameter: tool.tipDiameter || 0,
+        halfAngle: tool.halfAngle || 0
+      }
+    };
+  }
+
   var api = {
     parseProgram: parseProgram,
     buildRedo: buildRedo,
+    buildFinishShape: buildFinishShape,
     buildDrill: buildDrill,
     buildPatch: buildPatch,
     shapeContains: shapeContains,

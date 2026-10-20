@@ -46,8 +46,16 @@ The job list is one row per toolpath, and the name usually includes the tool, su
 
 ### Watch a 4th-axis carve
 
-A rotary job spins the blank on a lathe inside the machine while the bit stays above it and moves in X, Y, and Z. Open the file and the view shows the round stock, with the path wrapped on the wood. Press play and the wood turns under the bit. Path the bit has already run drops away. The last pass stays, so at the end of the preview you still see the shape of the finished surface.
+A rotary job spins the blank on a lathe inside the machine while the bit stays above it and moves in X, Y, and Z. Open the file and the view shows the round stock, with the path wrapped on the wood. Press play and the wood turns under the bit. Path the bit has already run drops away. The last pass is drawn as a solid that follows the tip of that pass, using the tip size from the file, so at the end of the preview you see the surface the bit left. Scales, grooves, and thin fins stay where the bit put them. The caption names the tool. It is a preview, not a measurement.
 
-This picture does not change the rotary settings. Saving at 0% writes the original program. A redo from later in the file sets X, Y, and Z, and it does not set the angle. On a long rotary carve that angle is a running total in the hundreds of thousands of degrees, and running the redo can send the rotary through that whole turn from zero. Do not run a mid-job redo of a 4th-axis file.
+![The finished rotary shape at the end of the preview](docs/rotary-overview.jpg)
+
+*At the end of the preview the last pass is a solid. The caption names the tool and the tip. It is a picture of that pass, not a measurement.*
+
+![A close view of scales, feathers, and vanes on the same carving](docs/rotary-detail.jpg)
+
+*Zoom in and the surface follows the tip. Scales, feathers, and thin vanes stay where the bit put them.*
+
+This picture does not change the rotary settings. Saving at 0% writes the original program. A redo from later in the file looks backward to the last lifted end of the X travel, the axis along the shaft, and starts there. The percent in the name can be earlier than where you parked. The angle is set at clearance before the bit feeds down. A finish that never returns to an end of X is cut again from the beginning of that finish, using the angle reset already in the file, so the rotary is not sent back through the whole running total. Watch that start before you tool.
 
 The saved file can still contain a machine line that says Makera Z1. That line is there so the controller accepts the file. It does not mean Makera made this editor.

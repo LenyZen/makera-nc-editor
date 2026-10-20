@@ -48,7 +48,7 @@
     header strong { font-size: 1.02rem; }
     header a.back { margin-left: auto; text-decoration: none; }
     main {
-      width: min(760px, calc(100% - 2rem));
+      width: min(880px, calc(100% - 2rem));
       margin: 0 auto;
       padding: 1.6rem 0 4rem;
     }
@@ -91,6 +91,19 @@
       border-bottom: 1px solid var(--line);
     }
     th { color: var(--muted); font-weight: 650; font-size: 0.85rem; }
+    figure.shot { margin: 1.15rem 0 0; }
+    figure.shot img {
+      display: block;
+      width: 100%;
+      height: auto;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+    }
+    figcaption {
+      color: var(--muted);
+      font-size: 0.92rem;
+      margin-top: 0.45rem;
+    }
     footer {
       color: var(--muted);
       font-size: 0.92rem;
@@ -138,7 +151,8 @@
     <p>Play or scrub until the picture is where the cutter should start again. The filename becomes the percent, so 40% wants to save as <code>Makera_40_redo.NC</code>. You can type another name. Use the percent name puts the percent name back.</p>
     <p>The saved file is a restart, not a chopped copy of the original. It selects the tool that was in use at that moment, starts the spindle, raises to clearance, travels to the restart X and Y, feeds down, and then runs the rest of the path. The Z1 may pause for a tool change before it moves. Confirm the work origin and the tool in the spindle before you run it.</p>
     <p>Saving at 0% writes the whole program that is on screen. If you have applied a patch, that whole program is the patched one. Saving later in the file writes a restart of whatever is on screen.</p>
-    <p>A 4th-axis file is different. Saving at 0% still writes the original program, angle and all. A redo from later in the file sets X, Y, and Z, and it does not set A. The angle in these files is a running total that can reach hundreds of thousands of degrees. Running that redo can send the rotary through that whole turn from zero. Do not run a mid-job redo of a rotary file. Use the original file, or save the full program at 0%.</p>
+    <p>A 4th-axis file restarts at an end of the X travel, the axis that runs along the rotary shaft. Park in the middle of a pass and the file looks backward to the last time the bit was lifted at an end of that trip. The percent in the name can be earlier than the percent on the slider. A park at 50% may save as 45% or 40%. The bit goes to clearance at that end, the angle is set there, and only then does the file feed down.</p>
+    <p>A finish that creeps along the shaft in one spiral, and does not come back to an end until it is done, starts again at the beginning of that finish. The whole finish is cut again. The angle reset that was already at that start is in the file, so the rotary is not sent back through the running total. Saving at 0% still writes the whole program. Watch the start of the redo before you tool.</p>
 
     <h2>Drill holes</h2>
     <p>Place hole drops a hole on the plate and selects it. A later hole copies the size, depth, peck, feed, spindle, and tool of the one you had selected, and it is offset so the holes do not stack. Each hole then keeps its own settings. Changing hole 2 does not change hole 1.</p>
@@ -178,8 +192,16 @@
     <h2>A 4th-axis job</h2>
     <p>A rotary file turns the wood on a lathe that sits inside the machine. The bit stays above the blank and moves in X, Y, and Z. The A word is how far the wood has turned, in degrees. Z is the height of the bit above the center of that spin.</p>
     <p>Open a file that contains A moves and the view switches to Iso, with Rotary on. The cylinder is the round stock. The square around it is the block that stock was taken from. The dot is the bit, and it stays on top. The wood, and the path drawn on the wood, turn underneath it. Drag to orbit. Rotary off shows the flat cross section, the same moves with no spin.</p>
-    <p>At the start you see the whole path. Play, and each stretch the bit has already run disappears, so the stock shows through. The last pass stays. That pass is the finishing cut along the surface, and it is the closest picture this file has of the finished part. When the job reaches 100%, that pass is still on the screen.</p>
-    <p>This is a preview. It does not change feeds, speeds, or the rotary settings, and a redo from partway through does not restore the angle. Read the warning in Save from a percent before you save anything from a rotary file.</p>
+    <p>At the start you see the whole path. Play, and each stretch the bit has already run disappears, so the stock shows through. The last pass is drawn as a solid that follows the tip of that pass, using the tip size from the file. Scales, grooves, and thin fins stay where the bit put them. The caption names the tool. It is a preview of that pass, not a measured part. When the job reaches 100%, that shape is what remains. Rotary off goes back to the lines, including the last pass.</p>
+    <figure class="shot">
+      <img src="docs/rotary-overview.jpg" alt="A rotary carving shown as a finished wooden shape inside the stock outline, with Rotary on and the playhead at the end of the job." />
+      <figcaption>At the end of the preview the last pass is a solid. The caption names the tool and the tip. It is a picture of that pass, not a measurement.</figcaption>
+    </figure>
+    <figure class="shot">
+      <img src="docs/rotary-detail.jpg" alt="A close view of the same carving, with scales, chevron feathers, and long vanes following the tip of the last pass." />
+      <figcaption>Zoom in and the surface follows the tip. Scales, feathers, and thin vanes stay where the bit put them.</figcaption>
+    </figure>
+    <p>This picture does not change feeds, speeds, or the rotary settings. A redo from partway through is described in Save from a percent. It starts at a lifted end of X, with the angle set before the bit feeds down. A finish that never returns to an end of X is cut again from the beginning of that finish.</p>
 
     <h2>Before a tool goes in the spindle</h2>
     <ol>

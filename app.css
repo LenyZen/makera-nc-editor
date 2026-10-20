@@ -216,6 +216,25 @@ main {
 
 .legend em { font-style: normal; letter-spacing: 0.08em; }
 
+.shapenote {
+  position: absolute;
+  z-index: 2;
+  left: 12px;
+  right: 12px;
+  bottom: 12px;
+  margin: 0;
+  padding: 0.4rem 0.7rem;
+  border-radius: 8px;
+  background: rgba(20, 18, 14, 0.86);
+  border: 1px solid var(--line);
+  color: var(--text);
+  font-size: 12.5px;
+  line-height: 1.4;
+  white-space: normal;
+}
+
+.shapenote[hidden] { display: none !important; }
+
 .empty {
   position: absolute;
   z-index: 1;

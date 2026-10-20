@@ -153,6 +153,26 @@
     $("scrub").setAttribute("aria-valuetext", pct.toFixed(1) + " percent");
   }
 
+  function shapeCaption(tool) {
+    var kind = (tool.type || tool.name || "tool").replace(/\s+/g, " ");
+    if (tool.halfAngle > 0 && tool.tipDiameter > 0) {
+      return "Finished shape · T" + tool.number + " " + kind + " · " + Makera.fmt(tool.tipDiameter) + " mm tip · " + Makera.fmt(tool.halfAngle * 2) + "° included. Preview of the last pass, not a measurement.";
+    }
+    if (tool.diameter > 0) {
+      return "Finished shape · T" + tool.number + " " + kind + " · " + Makera.fmt(tool.diameter) + " mm from the file. Preview of the last pass, not a measurement.";
+    }
+    return "Finished shape follows the last pass. That tool has no size in the file, so this is the path itself, not a measured part.";
+  }
+
+  function updateShapeNote() {
+    var el = $("shapeNote");
+    if (!el) return;
+    var shape = program && program._finishShape;
+    var show = !!(rotaryOn() && shape && shape.count);
+    el.hidden = !show;
+    if (show) el.textContent = shapeCaption(shape.tool);
+  }
+
   function fillJob(statusText) {
     $("empty").hidden = true;
     $("legend").hidden = false;
@@ -172,6 +192,7 @@
     rotaryBtn.hidden = !program.rotary;
     if (!program.rotary) showRotary = false;
     setPressed("rotaryBtn", !!(program.rotary && showRotary));
+    updateShapeNote();
     $("jobFacts").textContent = facts.join(" · ");
     $("fileMeta").textContent = sourceName + " · " + program.lineCount.toLocaleString("en-US") + " lines · clearance Z" + Makera.fmt(program.safeZ);
     document.title = sourceName + " · Leny's Makera_NC Editor";
@@ -962,10 +983,20 @@
     gl.enable(gl.DEPTH_TEST);
     gl.lineWidth(1);
     var buffer = gl.createBuffer();
+    var shape = compileShapeProgram(gl);
     return {
       gl: gl,
       prog: prog,
       buffer: buffer,
+      shapeProg: shape && shape.prog,
+      shapeBuffer: shape && shape.buffer,
+      sMVP: shape && shape.uMVP,
+      sSpin: shape && shape.uSpin,
+      sAxisY: shape && shape.uAxisY,
+      sAxisZ: shape && shape.uAxisZ,
+      sPos: shape ? shape.aPos : -1,
+      sNrm: shape ? shape.aNrm : -1,
+      shapeVerts: 0,
       pathVerts: 0,
       gridStart: 0,
       gridVerts: 0,
@@ -983,6 +1014,69 @@
       aPos: gl.getAttribLocation(prog, "aPos"),
       aTime: gl.getAttribLocation(prog, "aTime"),
       aKind: gl.getAttribLocation(prog, "aKind")
+    };
+  }
+
+  function compileShapeProgram(gl) {
+    var vs = [
+      "attribute vec3 aPos;",
+      "attribute vec3 aNrm;",
+      "uniform mat4 uMVP;",
+      "uniform float uSpin;",
+      "uniform float uAxisY;",
+      "uniform float uAxisZ;",
+      "varying vec3 vNrm;",
+      "void main(){",
+      "  vec3 p=aPos; vec3 n=aNrm;",
+      "  float y=p.y-uAxisY; float z=p.z-uAxisZ;",
+      "  float c=cos(uSpin); float s=sin(uSpin);",
+      "  p.y=uAxisY+c*y-s*z; p.z=uAxisZ+s*y+c*z;",
+      "  n.y=c*aNrm.y-s*aNrm.z; n.z=s*aNrm.y+c*aNrm.z;",
+      "  vNrm=n;",
+      "  gl_Position=uMVP*vec4(p,1.0);",
+      "}"
+    ].join("\n");
+    var fs = [
+      "precision mediump float;",
+      "varying vec3 vNrm;",
+      "void main(){",
+      "  vec3 n=normalize(vNrm);",
+      "  vec3 L=normalize(vec3(0.25,0.62,0.74));",
+      "  vec3 F=normalize(vec3(-0.55,-0.12,0.38));",
+      "  float key=clamp(dot(n,L),0.0,1.0);",
+      "  float fill=clamp(dot(n,F),0.0,1.0);",
+      "  float shade=0.14+0.72*key+0.24*fill;",
+      "  vec3 col=vec3(0.64,0.41,0.22)*shade;",
+      "  gl_FragColor=vec4(col,1.0);",
+      "}"
+    ].join("\n");
+    function compile(type, src) {
+      var sh = gl.createShader(type);
+      gl.shaderSource(sh, src);
+      gl.compileShader(sh);
+      if (!gl.getShaderParameter(sh, gl.COMPILE_STATUS)) {
+        gl.deleteShader(sh);
+        return null;
+      }
+      return sh;
+    }
+    var vsh = compile(gl.VERTEX_SHADER, vs);
+    var fsh = compile(gl.FRAGMENT_SHADER, fs);
+    if (!vsh || !fsh) return null;
+    var prog = gl.createProgram();
+    gl.attachShader(prog, vsh);
+    gl.attachShader(prog, fsh);
+    gl.linkProgram(prog);
+    if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) return null;
+    return {
+      prog: prog,
+      buffer: gl.createBuffer(),
+      uMVP: gl.getUniformLocation(prog, "uMVP"),
+      uSpin: gl.getUniformLocation(prog, "uSpin"),
+      uAxisY: gl.getUniformLocation(prog, "uAxisY"),
+      uAxisZ: gl.getUniformLocation(prog, "uAxisZ"),
+      aPos: gl.getAttribLocation(prog, "aPos"),
+      aNrm: gl.getAttribLocation(prog, "aNrm")
     };
   }
 
@@ -1037,9 +1131,16 @@
     var y1 = stock ? stock.y1 : bnds.maxY;
     var wrap = rotaryOn();
     var axis = wrap ? rotaryAxis() : null;
+    var shape = null;
+    if (wrap && renderer.shapeProg) {
+      if (program._finishShape === undefined) program._finishShape = Makera.buildFinishShape(program, axis);
+      shape = program._finishShape;
+    }
+    renderer.shapeVerts = shape && shape.count ? shape.count : 0;
+    var skipFrom = renderer.shapeVerts ? shape.from : n;
     var angles = program.a;
     var pathVerts = 0;
-    for (var c = 0; c < n; c++) {
+    for (var c = 0; c < n && c < skipFrom; c++) {
       pathVerts += segmentSteps(angles ? angles[c] : 0, angles ? angles[c + 1] : 0, wrap) * 2;
     }
     var gridLines = 22;
@@ -1048,8 +1149,8 @@
     var buf = new Float32Array((pathVerts + decorVerts) * 5);
     var total = program.totalTime || 1;
     var cursor = 0;
-    var keepFrom = wrap ? finalPassStart(program) : program.n;
-    for (var i = 0; i < n; i++) {
+    var keepFrom = wrap && !renderer.shapeVerts ? finalPassStart(program) : n;
+    for (var i = 0; i < n && i < skipFrom; i++) {
       var a0 = angles ? angles[i] : 0;
       var a1 = angles ? angles[i + 1] : 0;
       var steps = segmentSteps(a0, a1, wrap);
@@ -1135,8 +1236,13 @@
       }
     }
     renderer.stockVerts = cursor - renderer.stockStart;
+    if (renderer.shapeVerts && renderer.shapeBuffer) {
+      gl.bindBuffer(gl.ARRAY_BUFFER, renderer.shapeBuffer);
+      gl.bufferData(gl.ARRAY_BUFFER, shape.data, gl.STATIC_DRAW);
+    }
     prepareRenderer();
     gl.bufferData(gl.ARRAY_BUFFER, buf.subarray(0, cursor * 5), gl.STATIC_DRAW);
+    updateShapeNote();
   }
 
   function drawScene() {
@@ -1163,6 +1269,34 @@
       gl.uniform1f(renderer.uShowRapid, showRapids ? 1 : 0);
       gl.uniform1f(renderer.uHideTraveled, spinOn ? 1 : 0);
       if (renderer.gridVerts) gl.drawArrays(gl.LINES, renderer.gridStart, renderer.gridVerts);
+      if (spinOn && renderer.shapeVerts && renderer.shapeProg) {
+        gl.useProgram(renderer.shapeProg);
+        gl.bindBuffer(gl.ARRAY_BUFFER, renderer.shapeBuffer);
+        if (renderer.aTime >= 0) gl.disableVertexAttribArray(renderer.aTime);
+        if (renderer.aKind >= 0) gl.disableVertexAttribArray(renderer.aKind);
+        gl.enableVertexAttribArray(renderer.sPos);
+        gl.vertexAttribPointer(renderer.sPos, 3, gl.FLOAT, false, 24, 0);
+        gl.enableVertexAttribArray(renderer.sNrm);
+        gl.vertexAttribPointer(renderer.sNrm, 3, gl.FLOAT, false, 24, 12);
+        gl.uniformMatrix4fv(renderer.sMVP, false, m);
+        gl.uniform1f(renderer.sSpin, spin);
+        gl.uniform1f(renderer.sAxisY, axis ? axis.y : 0);
+        gl.uniform1f(renderer.sAxisZ, axis ? axis.z : 0);
+        gl.drawArrays(gl.TRIANGLES, 0, renderer.shapeVerts);
+        if (renderer.sPos >= 0) gl.disableVertexAttribArray(renderer.sPos);
+        if (renderer.sNrm >= 0) gl.disableVertexAttribArray(renderer.sNrm);
+        gl.useProgram(renderer.prog);
+        prepareRenderer();
+        gl.uniformMatrix4fv(renderer.uMVP, false, m);
+        gl.uniform1f(renderer.uSpin, spin);
+        gl.uniform1f(renderer.uAxisY, axis ? axis.y : 0);
+        gl.uniform1f(renderer.uAxisZ, axis ? axis.z : 0);
+        gl.uniform1f(renderer.uTime, norm);
+        gl.uniform1f(renderer.uZMin, colorZ.min);
+        gl.uniform1f(renderer.uZRange, range);
+        gl.uniform1f(renderer.uShowRapid, showRapids ? 1 : 0);
+        gl.uniform1f(renderer.uHideTraveled, 1);
+      }
       if (showStock && renderer.stockVerts) gl.drawArrays(gl.LINES, renderer.stockStart, renderer.stockVerts);
       if (renderer.pathVerts) gl.drawArrays(gl.LINES, 0, renderer.pathVerts);
     }
@@ -1351,7 +1485,7 @@
     resize();
     if (renderer) uploadPath();
     fillJob(parsed.rotary
-      ? "4th axis. The stock spins under the bit, and the bit stays on X, Y, and Z. Turn Rotary off to see the flat cross section."
+      ? "4th axis. The stock spins under the bit, and the bit stays on X, Y, and Z. The solid form is the finished shape of the last pass. Turn Rotary off to see the flat cross section."
       : "");
     setBusy(false);
     dirty = true;
@@ -1383,23 +1517,47 @@
     }
   }
 
+  function redoNote(name, redo) {
+    if (redo.rotaryKind === "full") {
+      return "Saved the full program as " + name + ". The playhead was at " + redo.parkedPercent.toFixed(1) + "%, before the first end of X.";
+    }
+    var line = "line " + redo.lineNo.toLocaleString("en-US");
+    if (redo.rotaryKind === "toolpath") {
+      return "Saved " + name + " from " + redo.percent.toFixed(1) + "% (" + line + "). The playhead was at " + redo.parkedPercent.toFixed(1) + "%. This finish does not return to an end of X, so the file starts at the beginning of that finish.";
+    }
+    if (redo.rotaryKind === "pass") {
+      var base = "Saved " + name + " from " + redo.percent.toFixed(1) + "% (" + line + ").";
+      if (Math.abs(redo.parkedPercent - redo.percent) >= 0.15) {
+        return base + " The playhead was at " + redo.parkedPercent.toFixed(1) + "%. The restart is the lifted end of that pass, before the wood turns through the cut.";
+      }
+      return base + " The angle is set at clearance before the bit feeds down.";
+    }
+    if (redo.passthrough) {
+      return "Saved the " + (sourceIsPatch ? "patched program" : "full original program") + " as " + name + ".";
+    }
+    return "Saved " + name + " from " + redo.percent.toFixed(1) + "% (" + line + ").";
+  }
+
   async function saveRedo() {
     if (!program) return;
-    var name = ($("filename").value || "").trim() || Makera.redoName(0);
-    if (!/\.nc$/i.test(name)) name += ".NC";
     setStatus("Building the redo file…");
     await new Promise(function (resolve) { setTimeout(resolve, 20); });
     var redo = Makera.buildRedo(sourceText, program, simTime, sourceName);
+    if (redo.refused) {
+      setStatus(redo.message);
+      return;
+    }
+    var name = ($("filename").value || "").trim() || redo.name;
+    if (redo.rotaryRewind && !nameEdited) name = redo.name;
+    if (!/\.nc$/i.test(name)) name += ".NC";
+    if (redo.rotaryRewind && !nameEdited) $("filename").value = name;
     try {
       var how = await saveText(name, redo.content);
       if (how === "cancel") {
         setStatus("");
         return;
       }
-      var note = redo.passthrough
-        ? "Saved the " + (sourceIsPatch ? "patched program" : "full original program") + " as " + name + "."
-        : "Saved " + name + " from " + redo.percent.toFixed(1) + "% (line " + redo.lineNo.toLocaleString("en-US") + ").";
-      setStatus(note);
+      setStatus(redoNote(name, redo));
     } catch (err) {
       setStatus("The browser did not save the file.");
     }
@@ -1506,6 +1664,7 @@
     $("zTop").textContent = Makera.fmt(colorZ.max);
     $("zBot").textContent = Makera.fmt(colorZ.min);
     fitView();
+    updateShapeNote();
     dirty = true;
   });
   $("rapidsBtn").addEventListener("click", function () {
