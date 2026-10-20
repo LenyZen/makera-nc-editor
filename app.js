@@ -15,6 +15,7 @@
   var speed = 300;
   var showRapids = true;
   var showStock = true;
+  var showRotary = true;
   var nameEdited = false;
   var loadToken = 0;
   var dirty = true;
@@ -138,7 +139,8 @@
     var spin = cmd === 5 ? "spindle off" : "S" + Math.round(spindle);
     var name = toolName(tool);
     var feedLabel = feed > 1 ? ("F" + Makera.fmt(feed)) : "F—";
-    $("toolRow").textContent = "T" + tool + (name ? "  " + name : "") + "   " + spin + "   " + feedLabel + "   " + coolName;
+    var angleRead = program.rotary ? "   A" + Makera.fmt(sample.a) : "";
+    $("toolRow").textContent = "T" + tool + (name ? "  " + name : "") + "   " + spin + "   " + feedLabel + "   " + coolName + angleRead;
     $("lineRead").textContent = "Line " + program.lineNo[sample.index].toLocaleString("en-US");
     $("gcode").textContent = currentLineText(sample) || " ";
     $("saveBtn").textContent = pct <= 0.05 ? "Save full program" : "Save redo file";
@@ -162,8 +164,14 @@
     if (meta.timeSeconds) facts.push("Makera estimate " + Makera.formatTime(meta.timeSeconds));
     if (meta.material) facts.push(meta.material);
     if (meta.stock && meta.stock.length) {
-      facts.push(meta.stock.length + " × " + meta.stock.width + " × " + meta.stock.height + " " + (meta.unit || "mm"));
+      var size = meta.stock.length + " × " + meta.stock.width + " × " + meta.stock.height;
+      if (meta.stock.diameter > 0) size += " · Ø" + meta.stock.diameter;
+      facts.push(size + " " + (meta.unit || "mm"));
     }
+    var rotaryBtn = $("rotaryBtn");
+    rotaryBtn.hidden = !program.rotary;
+    if (!program.rotary) showRotary = false;
+    setPressed("rotaryBtn", !!(program.rotary && showRotary));
     $("jobFacts").textContent = facts.join(" · ");
     $("fileMeta").textContent = sourceName + " · " + program.lineCount.toLocaleString("en-US") + " lines · clearance Z" + Makera.fmt(program.safeZ);
     document.title = sourceName + " · Leny's Makera_NC Editor";
@@ -324,17 +332,52 @@
       minZ = Math.min(minZ, stock.z0);
       maxZ = Math.max(maxZ, stock.z1);
     }
+    if (rotaryOn()) {
+      var axis = rotaryAxis();
+      var fitR = axis.radius;
+      for (var ri = 0; ri <= program.n; ri++) {
+        if (ri < program.n && program.rapid[ri]) continue;
+        var rr = Math.hypot(program.y[ri] - axis.y, program.z[ri] - axis.z);
+        if (rr > fitR) fitR = rr;
+      }
+      if (!(fitR > 0)) fitR = 1;
+      minY = axis.y - fitR;
+      maxY = axis.y + fitR;
+      minZ = axis.z - fitR;
+      maxZ = axis.z + fitR;
+      if (axis.x1 > axis.x0) {
+        minX = Math.min(minX, axis.x0);
+        maxX = Math.max(maxX, axis.x1);
+      }
+    }
     cam.targetX = (minX + maxX) / 2;
     cam.targetY = (minY + maxY) / 2;
     cam.targetZ = (minZ + maxZ) / 2;
     var dx = Math.max(1, maxX - minX);
     var dy = Math.max(1, maxY - minY);
+    var dz = Math.max(1, maxZ - minZ);
     var aspect = glCanvas.width / Math.max(1, glCanvas.height);
-    cam.viewH = Math.max(dy, dx / aspect) * 1.18;
+    if (cam.mode === "iso") {
+      var span = Math.hypot(dx, dy, dz);
+      cam.viewH = Math.max(span * 0.9, span / Math.max(0.2, aspect)) * 1.08;
+    } else {
+      cam.viewH = Math.max(dy, dx / aspect) * 1.18;
+    }
     dirty = true;
   }
 
   function cutColorRange(prog) {
+    if (rotaryOn()) {
+      var axis = rotaryAxis();
+      var maxR = axis.radius;
+      for (var r = 0; r <= prog.n; r++) {
+        if (r < prog.n && prog.rapid[r]) continue;
+        var rad = Math.hypot(prog.y[r] - axis.y, prog.z[r] - axis.z);
+        if (rad > maxR) maxR = rad;
+      }
+      if (!(maxR > 0)) maxR = 1;
+      return { min: axis.z - maxR, max: axis.z + maxR };
+    }
     var min = Infinity;
     var max = -Infinity;
     for (var i = 0; i < prog.n; i++) {
@@ -376,6 +419,68 @@
       z0: -hz - o.z,
       z1: hz - o.z
     };
+  }
+
+  function rotaryOn() {
+    return !!(showRotary && program && program.rotary && program.a);
+  }
+
+  function rotaryAxis() {
+    var box = stockBox();
+    var stock = program && program.meta.stock;
+    var radius = stock && stock.diameter > 0 ? stock.diameter / 2 : 0;
+    if (box) {
+      if (!(radius > 0)) radius = Math.min(box.y1 - box.y0, box.z1 - box.z0) / 2;
+      return {
+        y: (box.y0 + box.y1) / 2,
+        z: (box.z0 + box.z1) / 2,
+        x0: box.x0,
+        x1: box.x1,
+        radius: radius
+      };
+    }
+    var b = program.bounds;
+    return { y: 0, z: 0, x0: b.minX, x1: b.maxX, radius: radius };
+  }
+
+  function wrapInto(buf, o, x, y, z, aDeg, axis) {
+    if (!axis) {
+      buf[o] = x;
+      buf[o + 1] = y;
+      buf[o + 2] = z;
+      return;
+    }
+    var dy = y - axis.y;
+    var dz = z - axis.z;
+    var radius = Math.hypot(dy, dz);
+    var ang = Math.atan2(dy, dz) + (aDeg || 0) * 0.017453292519943295;
+    buf[o] = x;
+    buf[o + 1] = axis.y + radius * Math.sin(ang);
+    buf[o + 2] = axis.z + radius * Math.cos(ang);
+  }
+
+  function spinWorld(p, spin, axis) {
+    if (!spin || !axis) return p;
+    var y = p[1] - axis.y;
+    var z = p[2] - axis.z;
+    var c = Math.cos(spin);
+    var s = Math.sin(spin);
+    return [p[0], axis.y + c * y - s * z, axis.z + s * y + c * z];
+  }
+
+  function displayPoint(x, y, z, aDeg) {
+    if (!rotaryOn()) return [x, y, z];
+    var scratch = [0, 0, 0];
+    wrapInto(scratch, 0, x, y, z, aDeg, rotaryAxis());
+    return scratch;
+  }
+
+  function segmentSteps(a0, a1, wrap) {
+    if (!wrap) return 1;
+    var sweep = Math.abs(a1 - a0);
+    if (sweep <= 12) return 1;
+    var steps = Math.ceil(sweep / 12);
+    return steps > 60 ? 60 : steps;
   }
 
   function surfaceZ() {
@@ -798,22 +903,34 @@
       "attribute float aTime;",
       "attribute float aKind;",
       "uniform mat4 uMVP;",
+      "uniform float uSpin;",
+      "uniform float uAxisY;",
+      "uniform float uAxisZ;",
       "varying float vTime;",
       "varying float vKind;",
       "varying float vZ;",
       "void main(){",
+      "  vec3 p=aPos;",
       "  vTime=aTime; vKind=aKind; vZ=aPos.z;",
-      "  gl_Position=uMVP*vec4(aPos,1.0);",
+      "  if(aKind<2.5 || aKind>3.5){",
+      "    float y=p.y-uAxisY; float z=p.z-uAxisZ;",
+      "    float c=cos(uSpin); float s=sin(uSpin);",
+      "    p.y=uAxisY+c*y-s*z;",
+      "    p.z=uAxisZ+s*y+c*z;",
+      "  }",
+      "  gl_Position=uMVP*vec4(p,1.0);",
       "}"
     ].join("\n");
     var fsSource = [
       "precision highp float;",
       "varying float vTime; varying float vKind; varying float vZ;",
-      "uniform float uTime; uniform float uZMin; uniform float uZRange; uniform float uShowRapid;",
+      "uniform float uTime; uniform float uZMin; uniform float uZRange; uniform float uShowRapid; uniform float uHideTraveled;",
       "void main(){",
+      "  if(vKind>3.5){ gl_FragColor=vec4(0.73,0.58,0.34,1.0); return; }",
       "  if(vKind>2.5){ gl_FragColor=vec4(0.34,0.31,0.25,1.0); return; }",
       "  if(vKind>1.5){ gl_FragColor=vec4(0.86,0.62,0.22,1.0); return; }",
       "  if(vKind>0.5 && uShowRapid<0.5) discard;",
+      "  if(uHideTraveled>0.5 && vKind>=0.0 && vTime<=uTime) discard;",
       "  float depth=clamp((vZ-uZMin)/uZRange,0.0,1.0);",
       "  vec3 col=mix(vec3(0.86,0.38,0.16), vec3(0.66,0.78,0.48), depth);",
       "  if(vKind>0.5) col=vec3(0.62,0.54,0.40);",
@@ -855,10 +972,14 @@
       stockStart: 0,
       stockVerts: 0,
       uMVP: gl.getUniformLocation(prog, "uMVP"),
+      uSpin: gl.getUniformLocation(prog, "uSpin"),
+      uAxisY: gl.getUniformLocation(prog, "uAxisY"),
+      uAxisZ: gl.getUniformLocation(prog, "uAxisZ"),
       uTime: gl.getUniformLocation(prog, "uTime"),
       uZMin: gl.getUniformLocation(prog, "uZMin"),
       uZRange: gl.getUniformLocation(prog, "uZRange"),
       uShowRapid: gl.getUniformLocation(prog, "uShowRapid"),
+      uHideTraveled: gl.getUniformLocation(prog, "uHideTraveled"),
       aPos: gl.getAttribLocation(prog, "aPos"),
       aTime: gl.getAttribLocation(prog, "aTime"),
       aKind: gl.getAttribLocation(prog, "aKind")
@@ -881,6 +1002,29 @@
     gl.lineWidth(1);
   }
 
+  function finalPassStart(prog) {
+    if (prog._finalPass != null) return prog._finalPass;
+    var list = prog.meta && prog.meta.toolpaths ? prog.meta.toolpaths : [];
+    var start = 0;
+    var found = false;
+    for (var t = 0; t < list.length; t++) {
+      if (list[t].startSeg == null) continue;
+      if (!found || list[t].startSeg >= start) {
+        start = list[t].startSeg;
+        found = true;
+      }
+    }
+    var begin = prog.n;
+    if (found) {
+      var i = prog.n - 1;
+      while (i >= start && prog.rapid[i]) i--;
+      while (i >= start && !prog.rapid[i]) i--;
+      begin = i + 1;
+    }
+    prog._finalPass = begin;
+    return begin;
+  }
+
   function uploadPath() {
     if (!renderer || !program) return;
     var gl = renderer.gl;
@@ -891,25 +1035,47 @@
     var x1 = stock ? stock.x1 : bnds.maxX;
     var y0 = stock ? stock.y0 : bnds.minY;
     var y1 = stock ? stock.y1 : bnds.maxY;
+    var wrap = rotaryOn();
+    var axis = wrap ? rotaryAxis() : null;
+    var angles = program.a;
+    var pathVerts = 0;
+    for (var c = 0; c < n; c++) {
+      pathVerts += segmentSteps(angles ? angles[c] : 0, angles ? angles[c + 1] : 0, wrap) * 2;
+    }
     var gridLines = 22;
-    var decorVerts = gridLines * 2 + (stock ? 24 : 0) + 8;
-    var buf = new Float32Array((n * 2 + decorVerts) * 5);
+    var cylVerts = wrap && stock ? (7 * 24 + 8) * 2 : 0;
+    var decorVerts = gridLines * 2 + (stock ? 24 : 0) + cylVerts;
+    var buf = new Float32Array((pathVerts + decorVerts) * 5);
     var total = program.totalTime || 1;
     var cursor = 0;
+    var keepFrom = wrap ? finalPassStart(program) : program.n;
     for (var i = 0; i < n; i++) {
+      var a0 = angles ? angles[i] : 0;
+      var a1 = angles ? angles[i + 1] : 0;
+      var steps = segmentSteps(a0, a1, wrap);
       var t0 = i === 0 ? 0 : program.tEnd[i - 1];
-      var o = cursor * 5;
-      buf[o] = program.x[i];
-      buf[o + 1] = program.y[i];
-      buf[o + 2] = program.z[i];
-      buf[o + 3] = t0 / total;
-      buf[o + 4] = program.rapid[i];
-      buf[o + 5] = program.x[i + 1];
-      buf[o + 6] = program.y[i + 1];
-      buf[o + 7] = program.z[i + 1];
-      buf[o + 8] = program.tEnd[i] / total;
-      buf[o + 9] = program.rapid[i];
-      cursor += 2;
+      var t1 = program.tEnd[i];
+      for (var s = 1; s <= steps; s++) {
+        var u0 = (s - 1) / steps;
+        var u1 = s / steps;
+        var o = cursor * 5;
+        wrapInto(buf, o,
+          program.x[i] + (program.x[i + 1] - program.x[i]) * u0,
+          program.y[i] + (program.y[i + 1] - program.y[i]) * u0,
+          program.z[i] + (program.z[i + 1] - program.z[i]) * u0,
+          a0 + (a1 - a0) * u0, axis);
+        var kind = program.rapid[i] ? 1 : (i >= keepFrom ? -1 : 0);
+        buf[o + 3] = (t0 + (t1 - t0) * u0) / total;
+        buf[o + 4] = kind;
+        wrapInto(buf, o + 5,
+          program.x[i] + (program.x[i + 1] - program.x[i]) * u1,
+          program.y[i] + (program.y[i + 1] - program.y[i]) * u1,
+          program.z[i] + (program.z[i + 1] - program.z[i]) * u1,
+          a0 + (a1 - a0) * u1, axis);
+        buf[o + 8] = (t0 + (t1 - t0) * u1) / total;
+        buf[o + 9] = kind;
+        cursor += 2;
+      }
     }
     renderer.pathVerts = cursor;
     var z0 = stock ? stock.z0 : Math.min(bnds.minZ, 0);
@@ -946,6 +1112,27 @@
         var ed = edges[e];
         cursor = pushLine(buf, cursor, ed[0], ed[1], ed[2], ed[3], ed[4], ed[5], 0, 2);
       }
+      if (wrap && axis && axis.radius > 0) {
+        var slices = 24;
+        var rings = 7;
+        for (var ring = 0; ring < rings; ring++) {
+          var cx = axis.x0 + (axis.x1 - axis.x0) * ring / (rings - 1);
+          for (var sl = 0; sl < slices; sl++) {
+            var ang0 = (sl / slices) * Math.PI * 2;
+            var ang1 = ((sl + 1) / slices) * Math.PI * 2;
+            cursor = pushLine(buf, cursor,
+              cx, axis.y + axis.radius * Math.sin(ang0), axis.z + axis.radius * Math.cos(ang0),
+              cx, axis.y + axis.radius * Math.sin(ang1), axis.z + axis.radius * Math.cos(ang1),
+              0, 4);
+          }
+        }
+        for (var lon = 0; lon < slices; lon += 3) {
+          var ang = (lon / slices) * Math.PI * 2;
+          var ly = axis.y + axis.radius * Math.sin(ang);
+          var lz = axis.z + axis.radius * Math.cos(ang);
+          cursor = pushLine(buf, cursor, axis.x0, ly, lz, axis.x1, ly, lz, 0, 4);
+        }
+      }
     }
     renderer.stockVerts = cursor - renderer.stockStart;
     prepareRenderer();
@@ -954,6 +1141,10 @@
 
   function drawScene() {
     var m = mvpMatrix();
+    var sample = program && program.n ? Makera.sampleAt(program, simTime) : null;
+    var spinOn = !!(sample && rotaryOn());
+    var spin = spinOn ? (sample.a || 0) * Math.PI / 180 : 0;
+    var axis = spinOn ? rotaryAxis() : null;
     if (renderer && program) {
       prepareRenderer();
       var gl = renderer.gl;
@@ -961,12 +1152,16 @@
       gl.clearColor(0.063, 0.055, 0.043, 1);
       gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
       gl.uniformMatrix4fv(renderer.uMVP, false, m);
+      gl.uniform1f(renderer.uSpin, spin);
+      gl.uniform1f(renderer.uAxisY, axis ? axis.y : 0);
+      gl.uniform1f(renderer.uAxisZ, axis ? axis.z : 0);
       var norm = program.totalTime > 0 ? simTime / program.totalTime : 0;
       gl.uniform1f(renderer.uTime, norm);
       var range = Math.max(0.001, colorZ.max - colorZ.min);
       gl.uniform1f(renderer.uZMin, colorZ.min);
       gl.uniform1f(renderer.uZRange, range);
       gl.uniform1f(renderer.uShowRapid, showRapids ? 1 : 0);
+      gl.uniform1f(renderer.uHideTraveled, spinOn ? 1 : 0);
       if (renderer.gridVerts) gl.drawArrays(gl.LINES, renderer.gridStart, renderer.gridVerts);
       if (showStock && renderer.stockVerts) gl.drawArrays(gl.LINES, renderer.stockStart, renderer.stockVerts);
       if (renderer.pathVerts) gl.drawArrays(gl.LINES, 0, renderer.pathVerts);
@@ -987,20 +1182,45 @@
       ctx.beginPath();
       ctx.lineWidth = Math.max(1, ovCanvas.width / Math.max(1, stage.clientWidth));
       ctx.strokeStyle = "rgba(214, 168, 92, 0.9)";
+      var wrapDraw = rotaryOn();
       for (var seg = 0; seg < program.n; seg += stride) {
         if (!showRapids && program.rapid[seg]) continue;
-        var pa = project(program.x[seg], program.y[seg], program.z[seg], m);
-        var pb = project(program.x[seg + 1], program.y[seg + 1], program.z[seg + 1], m);
-        if (!pa || !pb) continue;
-        ctx.moveTo(pa[0], pa[1]);
-        ctx.lineTo(pb[0], pb[1]);
+        var sa0 = program.a ? program.a[seg] : 0;
+        var sa1 = program.a ? program.a[seg + 1] : 0;
+        var segs = segmentSteps(sa0, sa1, wrapDraw);
+        for (var st = 1; st <= segs; st++) {
+          var su0 = (st - 1) / segs;
+          var su1 = st / segs;
+          if (wrapDraw && (program.rapid[seg] || seg < finalPassStart(program))) {
+            var segT0 = seg === 0 ? 0 : program.tEnd[seg - 1];
+            var segT1 = program.tEnd[seg];
+            if (segT0 + (segT1 - segT0) * su1 <= simTime) continue;
+          }
+          var wa0 = displayPoint(
+            program.x[seg] + (program.x[seg + 1] - program.x[seg]) * su0,
+            program.y[seg] + (program.y[seg + 1] - program.y[seg]) * su0,
+            program.z[seg] + (program.z[seg + 1] - program.z[seg]) * su0,
+            sa0 + (sa1 - sa0) * su0);
+          var wa1 = displayPoint(
+            program.x[seg] + (program.x[seg + 1] - program.x[seg]) * su1,
+            program.y[seg] + (program.y[seg + 1] - program.y[seg]) * su1,
+            program.z[seg] + (program.z[seg + 1] - program.z[seg]) * su1,
+            sa0 + (sa1 - sa0) * su1);
+          wa0 = spinWorld(wa0, spin, axis);
+          wa1 = spinWorld(wa1, spin, axis);
+          var pa = project(wa0[0], wa0[1], wa0[2], m);
+          var pb = project(wa1[0], wa1[1], wa1[2], m);
+          if (!pa || !pb) continue;
+          ctx.moveTo(pa[0], pa[1]);
+          ctx.lineTo(pb[0], pb[1]);
+        }
       }
       ctx.stroke();
     }
     drawHoles(ctx, m, dpr);
     drawShapes(ctx, m, dpr);
-    var sample = Makera.sampleAt(program, simTime);
-    var p = project(sample.x, sample.y, sample.z, m);
+    var marker = spinOn ? [sample.x, sample.y, sample.z] : displayPoint(sample.x, sample.y, sample.z, sample.a);
+    var p = project(marker[0], marker[1], marker[2], m);
     if (!p) {
       drawGizmo(ctx, m, dpr);
       return;
@@ -1110,6 +1330,12 @@
     baseProgram = parsed;
     program = parsed;
     sourceIsPatch = false;
+    showRotary = !!parsed.rotary;
+    if (parsed.rotary) {
+      cam.mode = "iso";
+      setPressed("viewTop", false);
+      setPressed("viewIso", true);
+    }
     shapes = [];
     selectedShape = -1;
     drawTool = null;
@@ -1124,7 +1350,9 @@
     if (!renderer) renderer = createRenderer();
     resize();
     if (renderer) uploadPath();
-    fillJob();
+    fillJob(parsed.rotary
+      ? "4th axis. The stock spins under the bit, and the bit stays on X, Y, and Z. Turn Rotary off to see the flat cross section."
+      : "");
     setBusy(false);
     dirty = true;
   }
@@ -1267,6 +1495,17 @@
     cam.mode = "iso";
     setPressed("viewTop", false);
     setPressed("viewIso", true);
+    dirty = true;
+  });
+  $("rotaryBtn").addEventListener("click", function () {
+    if (!program || !program.rotary) return;
+    showRotary = !showRotary;
+    setPressed("rotaryBtn", showRotary);
+    if (renderer) uploadPath();
+    colorZ = cutColorRange(program);
+    $("zTop").textContent = Makera.fmt(colorZ.max);
+    $("zBot").textContent = Makera.fmt(colorZ.min);
+    fitView();
     dirty = true;
   });
   $("rapidsBtn").addEventListener("click", function () {

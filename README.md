@@ -44,4 +44,10 @@ Inside keeps only the cuts in the shape, so you can recut that patch and leave t
 
 The job list is one row per toolpath, and the name usually includes the tool, such as `[T2] finishing`. Check only that finishing row and the roughing tool stays whole. Or leave Tools on All tools and the shape applies to the whole job. Nothing changes until you press Apply, so you can nudge the shape with X, Y, and size until it sits on the right spot. Use it when rerunning a two-hour file to fix a thumbnail-sized flaw would be a waste of the bit.
 
+### Watch a 4th-axis carve
+
+A rotary job spins the blank on a lathe inside the machine while the bit stays above it and moves in X, Y, and Z. Open the file and the view shows the round stock, with the path wrapped on the wood. Press play and the wood turns under the bit. Path the bit has already run drops away. The last pass stays, so at the end of the preview you still see the shape of the finished surface.
+
+This picture does not change the rotary settings. Saving at 0% writes the original program. A redo from later in the file sets X, Y, and Z, and it does not set the angle. On a long rotary carve that angle is a running total in the hundreds of thousands of degrees, and running the redo can send the rotary through that whole turn from zero. Do not run a mid-job redo of a 4th-axis file.
+
 The saved file can still contain a machine line that says Makera Z1. That line is there so the controller accepts the file. It does not mean Makera made this editor.

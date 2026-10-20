@@ -67,6 +67,7 @@
       x: null,
       y: null,
       z: null,
+      a: null,
       f: null,
       s: null,
       t: null,
@@ -99,6 +100,7 @@
         case 88: w.x = v; w.hasAxis = true; break;
         case 89: w.y = v; w.hasAxis = true; break;
         case 90: w.z = v; w.hasAxis = true; break;
+        case 65: w.a = v; w.hasAxis = true; break;
         case 70: w.f = v; break;
         case 83: w.s = v; break;
         case 84: w.t = v; break;
@@ -150,6 +152,7 @@
         x: program.x[0],
         y: program.y[0],
         z: program.z[0],
+        a: program.a ? program.a[0] : 0,
         atStart: true,
         atEnd: false
       };
@@ -162,6 +165,7 @@
         x: program.x[n],
         y: program.y[n],
         z: program.z[n],
+        a: program.a ? program.a[n] : 0,
         atStart: false,
         atEnd: true
       };
@@ -180,6 +184,7 @@
       x: program.x[i] + (program.x[i + 1] - program.x[i]) * u,
       y: program.y[i] + (program.y[i + 1] - program.y[i]) * u,
       z: program.z[i] + (program.z[i + 1] - program.z[i]) * u,
+      a: program.a ? program.a[i] + (program.a[i + 1] - program.a[i]) * u : 0,
       atStart: false,
       atEnd: false
     };
@@ -540,9 +545,11 @@
     var px = makeGrow(Float32Array, 8192);
     var py = makeGrow(Float32Array, 8192);
     var pz = makeGrow(Float32Array, 8192);
+    var pa = makeGrow(Float32Array, 8192);
     push(px, 0);
     push(py, 0);
     push(pz, 0);
+    push(pa, 0);
 
     var tEnd = makeGrow(Float64Array, 8192);
     var feedA = makeGrow(Float32Array, 8192);
@@ -561,6 +568,13 @@
     var x = 0;
     var y = 0;
     var z = 0;
+    var angle = 0;
+    var aOffset = 0;
+    var axisY = 0;
+    var axisZ = 0;
+    var segA0 = 0;
+    var holdAngle = false;
+    var rotaryMove = false;
     var feed = 0;
     var tool = 0;
     var spindle = 0;
@@ -600,8 +614,21 @@
     }
 
     function emit(x0, y0, z0, x1, y1, z1, isRapid) {
-      var dist = hypot3(x1 - x0, y1 - y0, z1 - z0);
-      if (dist < 1e-6) return;
+      var a0 = segA0;
+      var a1 = holdAngle ? segA0 : angle + aOffset;
+      var dA = a1 - a0;
+      var dist;
+      if (Math.abs(dA) < 1e-6) dist = hypot3(x1 - x0, y1 - y0, z1 - z0);
+      else {
+        var r0 = Math.hypot(y0 - axisY, z0 - axisZ);
+        var r1 = Math.hypot(y1 - axisY, z1 - axisZ);
+        dist = Math.hypot(x1 - x0, r1 - r0, Math.max(r0, r1) * Math.abs(dA) * Math.PI / 180);
+      }
+      if (dist < 1e-6) {
+        pa.a[tEnd.n] = a1;
+        return;
+      }
+      if (Math.abs(dA) > 1e-4) rotaryMove = true;
       var rate = isRapid ? maxFeed : (feed > 1 ? feed : maxFeed);
       var dt = (dist / rate) * 60;
       var acc = (tEnd.n ? tEnd.a[tEnd.n - 1] : 0) + dt;
@@ -618,6 +645,7 @@
       push(px, x1);
       push(py, y1);
       push(pz, z1);
+      push(pa, a1);
       push(tEnd, acc);
       push(feedA, feed);
       push(rapidA, isRapid ? 1 : 0);
@@ -656,7 +684,8 @@
         meta.stock = {
           length: num(kv.length, null),
           width: num(kv.width, null),
-          height: num(kv.height, null)
+          height: num(kv.height, null),
+          diameter: num(kv.diameter, null)
         };
       } else if (key === "ORIGIN") {
         meta.origin = {
@@ -665,6 +694,8 @@
           y: num(kv.y, 0),
           z: num(kv.z, 0)
         };
+        axisY = -meta.origin.y;
+        axisZ = -meta.origin.z;
       } else if (key === "TOOL") {
         meta.tools.push({
           number: num(kv.number, 0),
@@ -717,9 +748,11 @@
       var w = parseWords(text, p, end);
       var motion = null;
       var home = false;
+      var setPos = false;
       for (var g = 0; g < w.g.length; g++) {
         var gi = Math.round(w.g[g]);
         if (gi === 0 || gi === 1 || gi === 2 || gi === 3) motion = gi;
+        else if (gi === 92) setPos = true;
         else if (gi === 90) absolute = true;
         else if (gi === 91) absolute = false;
         else if (gi === 20) metric = false;
@@ -737,9 +770,25 @@
         else if (mi === 7 || mi === 8 || mi === 9) coolant = mi;
       }
 
+      var a0 = angle;
+      if (w.a != null) angle = absolute ? w.a : angle + w.a;
+
+      if (setPos) {
+        if (w.x != null) x = absolute ? w.x : x + w.x;
+        if (w.y != null) y = absolute ? w.y : y + w.y;
+        if (w.z != null) z = absolute ? w.z : z + w.z;
+        if (w.a != null) aOffset = (a0 + aOffset) - angle;
+        px.a[tEnd.n] = x;
+        py.a[tEnd.n] = y;
+        pz.a[tEnd.n] = z;
+        pa.a[tEnd.n] = angle + aOffset;
+        continue;
+      }
+
       if (home || !w.hasAxis) continue;
       var mode = motion != null ? motion : modalMotion;
       if (mode == null) continue;
+      segA0 = a0 + aOffset;
 
       if (w.x != null) knowX = true;
       if (w.y != null) knowY = true;
@@ -767,6 +816,7 @@
           px.a[0] = x;
           py.a[0] = y;
           pz.a[0] = z;
+          pa.a[0] = angle + aOffset;
         }
         continue;
       }
@@ -799,8 +849,11 @@
           var c17 = centerFromR(x, y, nx, ny, w.r, cw);
           if (c17) { cx = c17.cx; cy = c17.cy; }
         }
+        holdAngle = true;
         if (cx == null) emit(x, y, z, nx, ny, nz, false);
         else emitArc(emit, x, y, z, nx, ny, nz, cw, cx, cy, usePlane);
+        holdAngle = false;
+        if (Math.abs((angle + aOffset) - segA0) > 1e-6) emit(nx, ny, nz, nx, ny, nz, false);
       } else {
         emit(x, y, z, nx, ny, nz, mode === 0);
       }
@@ -835,6 +888,8 @@
       x: xOut,
       y: yOut,
       z: zOut,
+      a: finish(pa),
+      rotary: rotaryMove,
       tEnd: tOut,
       feed: finish(feedA),
       rapid: finish(rapidA),

@@ -179,7 +179,8 @@ main {
 
 .seg button[aria-pressed="true"],
 #rapidsBtn[aria-pressed="true"],
-#stockBtn[aria-pressed="true"] {
+#stockBtn[aria-pressed="true"],
+#rotaryBtn[aria-pressed="true"] {
   background: #3a3224;
   color: var(--text);
 }
@@ -187,6 +188,8 @@ main {
 .viewbar > button {
   background: rgba(20, 18, 14, 0.82);
 }
+
+#rotaryBtn[hidden] { display: none !important; }
 
 .legend {
   position: absolute;
