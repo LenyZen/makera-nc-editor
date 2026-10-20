@@ -44,6 +44,12 @@ Inside keeps only the cuts in the shape, so you can recut that patch and leave t
 
 The job list is one row per toolpath, and the name usually includes the tool, such as `[T2] finishing`. Check only that finishing row and the roughing tool stays whole. Or leave Tools on All tools and the shape applies to the whole job. Nothing changes until you press Apply, so you can nudge the shape with X, Y, and size until it sits on the right spot. Use it when rerunning a two-hour file to fix a thumbnail-sized flaw would be a waste of the bit.
 
+### See a flat relief
+
+A 3D relief with a finishing pass opens in the 3D view as a shaded solid of those finishing passes. Roughing and an outline cut stay out of the picture, so you see the finished face. Paths turns the cut lines on. Rapids turns the fast travel on. The flat Top view is the lines, which is where a patch is drawn.
+
+Play, or move the slider, and each stretch the bit has already run drops away. The solid stays. The buttons on the right jump to Top, Front, Right, Back, Left, and Bottom, and you can drag from any of those to keep turning. The caption names the tool. It is a preview, not a measurement.
+
 ### Watch a 4th-axis carve
 
 A rotary job spins the blank on a lathe inside the machine while the bit stays above it and moves in X, Y, and Z. Open the file and the view shows the round stock, with the path wrapped on the wood. Press play and the wood turns under the bit. Path the bit has already run drops away. The last pass is drawn as a solid that follows the tip of that pass, using the tip size from the file, so at the end of the preview you see the surface the bit left. Scales, grooves, and thin fins stay where the bit put them. The caption names the tool. It is a preview, not a measurement.

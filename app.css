@@ -178,6 +178,7 @@ main {
 }
 
 .seg button[aria-pressed="true"],
+#pathsBtn[aria-pressed="true"],
 #rapidsBtn[aria-pressed="true"],
 #stockBtn[aria-pressed="true"],
 #rotaryBtn[aria-pressed="true"] {
@@ -190,6 +191,27 @@ main {
 }
 
 #rotaryBtn[hidden] { display: none !important; }
+
+.facebar {
+  position: absolute;
+  z-index: 2;
+  right: 12px;
+  top: 168px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+.facebar[hidden] { display: none !important; }
+.facebar button {
+  background: rgba(20, 18, 14, 0.82);
+  min-width: 4.4rem;
+  padding: 0.32rem 0.6rem;
+  font-size: 0.82rem;
+}
+.facebar button[aria-pressed="true"] {
+  background: #3a3224;
+  color: var(--text);
+}
 
 .legend {
   position: absolute;

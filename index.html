@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Leny's Makera_NC Editor</title>
-  <link rel="stylesheet" href="app.css?v=10" />
+  <link rel="stylesheet" href="app.css?v=12" />
 </head>
 <body>
   <header class="top">
@@ -31,9 +31,18 @@
           <button type="button" id="viewIso" aria-pressed="false">Iso</button>
         </div>
         <button type="button" id="rotaryBtn" aria-pressed="false" hidden title="Spin the stock under the bit">Rotary</button>
+        <button type="button" id="pathsBtn" aria-pressed="true">Paths</button>
         <button type="button" id="rapidsBtn" aria-pressed="true">Rapids</button>
         <button type="button" id="stockBtn" aria-pressed="true">Stock</button>
         <button type="button" id="fitBtn">Fit</button>
+      </div>
+      <div class="facebar" id="facebar" hidden>
+        <button type="button" id="faceTop" data-face="top">Top</button>
+        <button type="button" id="faceFront" data-face="front">Front</button>
+        <button type="button" id="faceRight" data-face="right">Right</button>
+        <button type="button" id="faceBack" data-face="back">Back</button>
+        <button type="button" id="faceLeft" data-face="left">Left</button>
+        <button type="button" id="faceBottom" data-face="bottom">Bottom</button>
       </div>
       <div class="legend" id="legend" hidden>
         <span id="zTop">0</span>
@@ -282,7 +291,7 @@
     <p class="hint-title" id="hintTitle"></p>
     <p class="hint-body" id="hintBody"></p>
   </div>
-  <script src="makera.js?v=13"></script>
-  <script src="app.js?v=24"></script>
+  <script src="makera.js?v=14"></script>
+  <script src="app.js?v=28"></script>
 </body>
 </html>

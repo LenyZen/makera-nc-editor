@@ -14,6 +14,7 @@
   var playing = false;
   var speed = 300;
   var showRapids = true;
+  var showPaths = true;
   var showStock = true;
   var showRotary = true;
   var nameEdited = false;
@@ -29,6 +30,15 @@
     viewH: 100,
     yaw: -0.9,
     pitch: 0.62
+  };
+
+  var FACES = {
+    top: { yaw: -Math.PI / 2, pitch: 1.52 },
+    front: { yaw: -Math.PI / 2, pitch: 0 },
+    right: { yaw: 0, pitch: 0 },
+    back: { yaw: Math.PI / 2, pitch: 0 },
+    left: { yaw: Math.PI, pitch: 0 },
+    bottom: { yaw: -Math.PI / 2, pitch: -1.52 }
   };
 
   var renderer = null;
@@ -74,6 +84,24 @@
 
   function setPressed(id, on) {
     $(id).setAttribute("aria-pressed", on ? "true" : "false");
+  }
+
+  function angleNear(a, b) {
+    var d = Math.abs(a - b) % (Math.PI * 2);
+    if (d > Math.PI) d = Math.PI * 2 - d;
+    return d < 0.08;
+  }
+
+  function syncFacebar() {
+    var bar = $("facebar");
+    if (!bar) return;
+    bar.hidden = cam.mode !== "iso";
+    Object.keys(FACES).forEach(function (name) {
+      var face = FACES[name];
+      var on = cam.mode === "iso" && angleNear(cam.yaw, face.yaw) && Math.abs(cam.pitch - face.pitch) < 0.08;
+      var id = "face" + name.charAt(0).toUpperCase() + name.slice(1);
+      setPressed(id, on);
+    });
   }
 
   function enableJob(on) {
@@ -153,24 +181,42 @@
     $("scrub").setAttribute("aria-valuetext", pct.toFixed(1) + " percent");
   }
 
-  function shapeCaption(tool) {
+  function shapeCaption(tool, flat) {
     var kind = (tool.type || tool.name || "tool").replace(/\s+/g, " ");
+    var preview = flat
+      ? "Preview of the finishing passes, not a measurement."
+      : "Preview of the last pass, not a measurement.";
     if (tool.halfAngle > 0 && tool.tipDiameter > 0) {
-      return "Finished shape · T" + tool.number + " " + kind + " · " + Makera.fmt(tool.tipDiameter) + " mm tip · " + Makera.fmt(tool.halfAngle * 2) + "° included. Preview of the last pass, not a measurement.";
+      return "Finished shape · T" + tool.number + " " + kind + " · " + Makera.fmt(tool.tipDiameter) + " mm tip · " + Makera.fmt(tool.halfAngle * 2) + "° included. " + preview;
     }
     if (tool.diameter > 0) {
-      return "Finished shape · T" + tool.number + " " + kind + " · " + Makera.fmt(tool.diameter) + " mm from the file. Preview of the last pass, not a measurement.";
+      return "Finished shape · T" + tool.number + " " + kind + " · " + Makera.fmt(tool.diameter) + " mm from the file. " + preview;
     }
-    return "Finished shape follows the last pass. That tool has no size in the file, so this is the path itself, not a measured part.";
+    return flat
+      ? "Finished shape follows the finishing passes. That tool has no size in the file, so this is the path itself, not a measured part."
+      : "Finished shape follows the last pass. That tool has no size in the file, so this is the path itself, not a measured part.";
+  }
+
+  function activeShape() {
+    if (!program) return null;
+    if (rotaryOn()) return program._finishShape || null;
+    return program._flatShape || null;
+  }
+
+  function shapeVisible() {
+    var shape = activeShape();
+    if (!shape || !shape.count) return false;
+    if (rotaryOn()) return true;
+    return !!(shape.flat && cam.mode !== "top");
   }
 
   function updateShapeNote() {
     var el = $("shapeNote");
     if (!el) return;
-    var shape = program && program._finishShape;
-    var show = !!(rotaryOn() && shape && shape.count);
+    var shape = activeShape();
+    var show = shapeVisible();
     el.hidden = !show;
-    if (show) el.textContent = shapeCaption(shape.tool);
+    if (show) el.textContent = shapeCaption(shape.tool, !!shape.flat);
   }
 
   function fillJob(statusText) {
@@ -320,7 +366,8 @@
       cam.targetY + sy * cp,
       cam.targetZ + sp
     ];
-    var view3 = lookAt(eye, [cam.targetX, cam.targetY, cam.targetZ], [0, 0, 1]);
+    var up = Math.abs(sp) > 0.95 ? [-cy * sp, -sy * sp, cp] : [0, 0, 1];
+    var view3 = lookAt(eye, [cam.targetX, cam.targetY, cam.targetZ], up);
     return mat4Multiply(proj, view3);
   }
 
@@ -352,6 +399,10 @@
       maxY = Math.max(maxY, stock.y1);
       minZ = Math.min(minZ, stock.z0);
       maxZ = Math.max(maxZ, stock.z1);
+    }
+    if (!rotaryOn() && program._flatShape && program._flatShape.count && cam.mode === "iso") {
+      var plateTop = stock ? stock.z1 : 0;
+      if (maxZ > plateTop) maxZ = plateTop;
     }
     if (rotaryOn()) {
       var axis = rotaryAxis();
@@ -945,11 +996,12 @@
     var fsSource = [
       "precision highp float;",
       "varying float vTime; varying float vKind; varying float vZ;",
-      "uniform float uTime; uniform float uZMin; uniform float uZRange; uniform float uShowRapid; uniform float uHideTraveled;",
+      "uniform float uTime; uniform float uZMin; uniform float uZRange; uniform float uShowRapid; uniform float uHideTraveled; uniform float uHideCuts;",
       "void main(){",
       "  if(vKind>3.5){ gl_FragColor=vec4(0.73,0.58,0.34,1.0); return; }",
       "  if(vKind>2.5){ gl_FragColor=vec4(0.34,0.31,0.25,1.0); return; }",
       "  if(vKind>1.5){ gl_FragColor=vec4(0.86,0.62,0.22,1.0); return; }",
+      "  if(uHideCuts>0.5 && vKind<0.5) discard;",
       "  if(vKind>0.5 && uShowRapid<0.5) discard;",
       "  if(uHideTraveled>0.5 && vKind>=0.0 && vTime<=uTime) discard;",
       "  float depth=clamp((vZ-uZMin)/uZRange,0.0,1.0);",
@@ -994,6 +1046,7 @@
       sSpin: shape && shape.uSpin,
       sAxisY: shape && shape.uAxisY,
       sAxisZ: shape && shape.uAxisZ,
+      sColor: shape && shape.sColor,
       sPos: shape ? shape.aPos : -1,
       sNrm: shape ? shape.aNrm : -1,
       shapeVerts: 0,
@@ -1011,6 +1064,7 @@
       uZRange: gl.getUniformLocation(prog, "uZRange"),
       uShowRapid: gl.getUniformLocation(prog, "uShowRapid"),
       uHideTraveled: gl.getUniformLocation(prog, "uHideTraveled"),
+      uHideCuts: gl.getUniformLocation(prog, "uHideCuts"),
       aPos: gl.getAttribLocation(prog, "aPos"),
       aTime: gl.getAttribLocation(prog, "aTime"),
       aKind: gl.getAttribLocation(prog, "aKind")
@@ -1039,6 +1093,7 @@
     var fs = [
       "precision mediump float;",
       "varying vec3 vNrm;",
+      "uniform vec3 uColor;",
       "void main(){",
       "  vec3 n=normalize(vNrm);",
       "  vec3 L=normalize(vec3(0.25,0.62,0.74));",
@@ -1046,7 +1101,7 @@
       "  float key=clamp(dot(n,L),0.0,1.0);",
       "  float fill=clamp(dot(n,F),0.0,1.0);",
       "  float shade=0.14+0.72*key+0.24*fill;",
-      "  vec3 col=vec3(0.64,0.41,0.22)*shade;",
+      "  vec3 col=uColor*shade;",
       "  gl_FragColor=vec4(col,1.0);",
       "}"
     ].join("\n");
@@ -1075,6 +1130,7 @@
       uSpin: gl.getUniformLocation(prog, "uSpin"),
       uAxisY: gl.getUniformLocation(prog, "uAxisY"),
       uAxisZ: gl.getUniformLocation(prog, "uAxisZ"),
+      sColor: gl.getUniformLocation(prog, "uColor"),
       aPos: gl.getAttribLocation(prog, "aPos"),
       aNrm: gl.getAttribLocation(prog, "aNrm")
     };
@@ -1132,12 +1188,19 @@
     var wrap = rotaryOn();
     var axis = wrap ? rotaryAxis() : null;
     var shape = null;
-    if (wrap && renderer.shapeProg) {
-      if (program._finishShape === undefined) program._finishShape = Makera.buildFinishShape(program, axis);
-      shape = program._finishShape;
+    if (renderer.shapeProg) {
+      if (wrap) {
+        if (program._finishShape === undefined) program._finishShape = Makera.buildFinishShape(program, axis);
+        shape = program._finishShape;
+      } else if (!program.rotary) {
+        if (program._flatShape === undefined) program._flatShape = Makera.buildFinishShape(program, null);
+        shape = program._flatShape;
+      }
     }
     renderer.shapeVerts = shape && shape.count ? shape.count : 0;
-    var skipFrom = renderer.shapeVerts ? shape.from : n;
+    renderer.shapeFlat = !!(shape && shape.flat);
+    renderer.shapeColor = shape && shape.color ? shape.color : [0.64, 0.41, 0.22];
+    var skipFrom = renderer.shapeVerts && !shape.flat ? shape.from : n;
     var angles = program.a;
     var pathVerts = 0;
     for (var c = 0; c < n && c < skipFrom; c++) {
@@ -1267,9 +1330,12 @@
       gl.uniform1f(renderer.uZMin, colorZ.min);
       gl.uniform1f(renderer.uZRange, range);
       gl.uniform1f(renderer.uShowRapid, showRapids ? 1 : 0);
-      gl.uniform1f(renderer.uHideTraveled, spinOn ? 1 : 0);
+      var hideTraveled = spinOn || !program.rotary;
+      gl.uniform1f(renderer.uHideTraveled, hideTraveled ? 1 : 0);
+      var showSolid = !!(renderer.shapeVerts && (spinOn || (renderer.shapeFlat && cam.mode !== "top")));
+      gl.uniform1f(renderer.uHideCuts, showPaths ? 0 : 1);
       if (renderer.gridVerts) gl.drawArrays(gl.LINES, renderer.gridStart, renderer.gridVerts);
-      if (spinOn && renderer.shapeVerts && renderer.shapeProg) {
+      if (showSolid && renderer.shapeProg) {
         gl.useProgram(renderer.shapeProg);
         gl.bindBuffer(gl.ARRAY_BUFFER, renderer.shapeBuffer);
         if (renderer.aTime >= 0) gl.disableVertexAttribArray(renderer.aTime);
@@ -1282,6 +1348,7 @@
         gl.uniform1f(renderer.sSpin, spin);
         gl.uniform1f(renderer.sAxisY, axis ? axis.y : 0);
         gl.uniform1f(renderer.sAxisZ, axis ? axis.z : 0);
+        if (renderer.sColor) gl.uniform3fv(renderer.sColor, renderer.shapeColor || [0.64, 0.41, 0.22]);
         gl.drawArrays(gl.TRIANGLES, 0, renderer.shapeVerts);
         if (renderer.sPos >= 0) gl.disableVertexAttribArray(renderer.sPos);
         if (renderer.sNrm >= 0) gl.disableVertexAttribArray(renderer.sNrm);
@@ -1295,7 +1362,8 @@
         gl.uniform1f(renderer.uZMin, colorZ.min);
         gl.uniform1f(renderer.uZRange, range);
         gl.uniform1f(renderer.uShowRapid, showRapids ? 1 : 0);
-        gl.uniform1f(renderer.uHideTraveled, 1);
+        gl.uniform1f(renderer.uHideTraveled, hideTraveled ? 1 : 0);
+        gl.uniform1f(renderer.uHideCuts, showPaths ? 0 : 1);
       }
       if (showStock && renderer.stockVerts) gl.drawArrays(gl.LINES, renderer.stockStart, renderer.stockVerts);
       if (renderer.pathVerts) gl.drawArrays(gl.LINES, 0, renderer.pathVerts);
@@ -1318,6 +1386,7 @@
       ctx.strokeStyle = "rgba(214, 168, 92, 0.9)";
       var wrapDraw = rotaryOn();
       for (var seg = 0; seg < program.n; seg += stride) {
+        if (!showPaths && !program.rapid[seg]) continue;
         if (!showRapids && program.rapid[seg]) continue;
         var sa0 = program.a ? program.a[seg] : 0;
         var sa1 = program.a ? program.a[seg + 1] : 0;
@@ -1325,11 +1394,10 @@
         for (var st = 1; st <= segs; st++) {
           var su0 = (st - 1) / segs;
           var su1 = st / segs;
-          if (wrapDraw && (program.rapid[seg] || seg < finalPassStart(program))) {
-            var segT0 = seg === 0 ? 0 : program.tEnd[seg - 1];
-            var segT1 = program.tEnd[seg];
-            if (segT0 + (segT1 - segT0) * su1 <= simTime) continue;
-          }
+          var segT0 = seg === 0 ? 0 : program.tEnd[seg - 1];
+          var segT1 = program.tEnd[seg];
+          var keepLast = wrapDraw && !program.rapid[seg] && seg >= finalPassStart(program);
+          if (!keepLast && (wrapDraw || !program.rotary) && segT0 + (segT1 - segT0) * su1 <= simTime) continue;
           var wa0 = displayPoint(
             program.x[seg] + (program.x[seg + 1] - program.x[seg]) * su0,
             program.y[seg] + (program.y[seg + 1] - program.y[seg]) * su0,
@@ -1484,9 +1552,25 @@
     if (!renderer) renderer = createRenderer();
     resize();
     if (renderer) uploadPath();
+    showRapids = true;
+    setPressed("rapidsBtn", true);
+    showPaths = true;
+    setPressed("pathsBtn", true);
+    if (!parsed.rotary && program._flatShape && program._flatShape.count) {
+      cam.mode = "iso";
+      setPressed("viewTop", false);
+      setPressed("viewIso", true);
+      showRapids = false;
+      setPressed("rapidsBtn", false);
+      showPaths = false;
+      setPressed("pathsBtn", false);
+    }
+    syncFacebar();
     fillJob(parsed.rotary
       ? "4th axis. The stock spins under the bit, and the bit stays on X, Y, and Z. The solid form is the finished shape of the last pass. Turn Rotary off to see the flat cross section."
-      : "");
+      : (program._flatShape && program._flatShape.count
+        ? "The solid is the finishing passes. Paths turns the cut lines on. It is a preview, not a measurement."
+        : ""));
     setBusy(false);
     dirty = true;
   }
@@ -1647,12 +1731,31 @@
     cam.mode = "top";
     setPressed("viewTop", true);
     setPressed("viewIso", false);
+    syncFacebar();
+    updateShapeNote();
+    dirty = true;
+  });
+  $("facebar").addEventListener("click", function (e) {
+    var btn = e.target.closest("button");
+    if (!btn || !FACES[btn.dataset.face]) return;
+    var face = FACES[btn.dataset.face];
+    cam.mode = "iso";
+    cam.yaw = face.yaw;
+    cam.pitch = face.pitch;
+    setPressed("viewTop", false);
+    setPressed("viewIso", true);
+    if (program) fitView();
+    syncFacebar();
+    updateShapeNote();
     dirty = true;
   });
   $("viewIso").addEventListener("click", function () {
     cam.mode = "iso";
     setPressed("viewTop", false);
     setPressed("viewIso", true);
+    syncFacebar();
+    if (program && program._flatShape && program._flatShape.count) fitView();
+    updateShapeNote();
     dirty = true;
   });
   $("rotaryBtn").addEventListener("click", function () {
@@ -1665,6 +1768,11 @@
     $("zBot").textContent = Makera.fmt(colorZ.min);
     fitView();
     updateShapeNote();
+    dirty = true;
+  });
+  $("pathsBtn").addEventListener("click", function () {
+    showPaths = !showPaths;
+    setPressed("pathsBtn", showPaths);
     dirty = true;
   });
   $("rapidsBtn").addEventListener("click", function () {
@@ -1744,8 +1852,9 @@
     if (dragMode === "orbit") {
       cam.yaw -= e.movementX * 0.008;
       cam.pitch += e.movementY * 0.008;
-      if (cam.pitch < 0.12) cam.pitch = 0.12;
-      if (cam.pitch > 1.35) cam.pitch = 1.35;
+      if (cam.pitch < -1.55) cam.pitch = -1.55;
+      if (cam.pitch > 1.55) cam.pitch = 1.55;
+      syncFacebar();
     } else if (cam.mode === "top") {
       var scale = cam.viewH / Math.max(1, stage.clientHeight);
       cam.targetX -= e.movementX * scale;

@@ -1868,11 +1868,208 @@
     return { number: toolNum, name: "", diameter: 0, type: "", tipDiameter: 0, halfAngle: 0 };
   }
 
+  function finishColor(program) {
+    var m = program.meta && program.meta.material ? String(program.meta.material).toLowerCase() : "";
+    if (/aluminum|aluminium|steel|titanium|brass|copper|bronze|metal/.test(m)) return [0.67, 0.66, 0.62];
+    return [0.64, 0.41, 0.22];
+  }
+
+  // A 3-axis finish is one height at each point on the plate. The solid is
+  // that height, taken from the finishing passes. Roughing and a contour cut
+  // stay out of it: roughing is the pass before the surface, and a contour
+  // often drops to the bottom of the stock around the outline.
+  function buildFlatFinishShape(program) {
+    var list = program.meta && program.meta.toolpaths ? program.meta.toolpaths : [];
+    var chosen = [];
+    var t;
+    for (t = 0; t < list.length; t++) {
+      var name = list[t].name || "";
+      if (list[t].startSeg == null) continue;
+      if (!/finish/i.test(name)) continue;
+      if (/rough/i.test(name)) continue;
+      chosen.push(list[t]);
+    }
+    if (!chosen.length) return null;
+    var spans = [];
+    for (t = 0; t < chosen.length; t++) {
+      var start = chosen[t].startSeg;
+      var end = program.n;
+      var u;
+      for (u = 0; u < list.length; u++) {
+        if (list[u].startSeg > start && list[u].startSeg < end) end = list[u].startSeg;
+      }
+      spans.push([start, end]);
+    }
+    var px = program.x;
+    var py = program.y;
+    var pz = program.z;
+    var rapid = program.rapid;
+    var minX = Infinity;
+    var minY = Infinity;
+    var maxX = -Infinity;
+    var maxY = -Infinity;
+    var i;
+    var s;
+    for (s = 0; s < spans.length; s++) {
+      for (i = spans[s][0]; i < spans[s][1]; i++) {
+        if (rapid[i]) continue;
+        if (px[i] < minX) minX = px[i];
+        if (px[i + 1] < minX) minX = px[i + 1];
+        if (py[i] < minY) minY = py[i];
+        if (py[i + 1] < minY) minY = py[i + 1];
+        if (px[i] > maxX) maxX = px[i];
+        if (px[i + 1] > maxX) maxX = px[i + 1];
+        if (py[i] > maxY) maxY = py[i];
+        if (py[i + 1] > maxY) maxY = py[i + 1];
+      }
+    }
+    if (!(maxX > minX) || !(maxY > minY)) return null;
+    var inch = program.meta && /in/i.test(program.meta.unit || "");
+    var pitch = inch ? 0.1 / 25.4 : 0.1;
+    var nx = Math.round((maxX - minX) / pitch) + 1;
+    var ny = Math.round((maxY - minY) / pitch) + 1;
+    if (nx > 820 || ny > 820) {
+      pitch = Math.max((maxX - minX) / 819, (maxY - minY) / 819);
+      nx = Math.round((maxX - minX) / pitch) + 1;
+      ny = Math.round((maxY - minY) / pitch) + 1;
+    }
+    var h = new Float32Array(nx * ny);
+    for (i = 0; i < h.length; i++) h[i] = Infinity;
+    var sample = pitch * 0.45;
+    function stamp(x, y, z) {
+      var ix = Math.round((x - minX) / pitch);
+      var iy = Math.round((y - minY) / pitch);
+      if (ix < 0 || iy < 0 || ix >= nx || iy >= ny) return;
+      var id = iy * nx + ix;
+      if (z < h[id]) h[id] = z;
+    }
+    for (s = 0; s < spans.length; s++) {
+      for (i = spans[s][0]; i < spans[s][1]; i++) {
+        if (rapid[i]) continue;
+        var x0 = px[i];
+        var y0 = py[i];
+        var z0 = pz[i];
+        var dx = px[i + 1] - x0;
+        var dy = py[i + 1] - y0;
+        var dz = pz[i + 1] - z0;
+        var dist = Math.hypot(dx, dy);
+        var steps = dist > 0 ? Math.ceil(dist / sample) : 1;
+        if (steps > 4000) steps = 4000;
+        for (var k = 0; k <= steps; k++) {
+          var u = k / steps;
+          stamp(x0 + dx * u, y0 + dy * u, z0 + dz * u);
+        }
+      }
+    }
+    var src = h;
+    var dst = new Float32Array(h.length);
+    var pass;
+    var dirs = [1, 0, -1, 0, 0, 1, 0, -1];
+    for (pass = 0; pass < 3; pass++) {
+      dst.set(src);
+      for (var iy = 0; iy < ny; iy++) {
+        for (var ix = 0; ix < nx; ix++) {
+          var id = iy * nx + ix;
+          if (src[id] !== Infinity) continue;
+          var sum = 0;
+          var nsum = 0;
+          var lo = Infinity;
+          var hi = -Infinity;
+          for (var d = 0; d < 4; d++) {
+            var cx = ix + dirs[d * 2];
+            var cy = iy + dirs[d * 2 + 1];
+            if (cx < 0 || cy < 0 || cx >= nx || cy >= ny) continue;
+            var zv = src[cy * nx + cx];
+            if (zv === Infinity) continue;
+            if (zv < lo) lo = zv;
+            if (zv > hi) hi = zv;
+            sum += zv;
+            nsum++;
+          }
+          if (nsum >= 2 && hi - lo <= 0.75) dst[id] = sum / nsum;
+        }
+      }
+      var swap = src;
+      src = dst;
+      dst = swap;
+    }
+    if (src !== h) h.set(src);
+    var quads = 0;
+    for (iy = 1; iy < ny; iy++) {
+      for (ix = 1; ix < nx; ix++) {
+        if (h[iy * nx + ix] === Infinity) continue;
+        if (h[iy * nx + ix - 1] === Infinity) continue;
+        if (h[(iy - 1) * nx + ix] === Infinity) continue;
+        if (h[(iy - 1) * nx + ix - 1] === Infinity) continue;
+        quads++;
+      }
+    }
+    if (quads < 40) return null;
+    function normalAt(ix, iy) {
+      var zc = h[iy * nx + ix];
+      var hasL = ix > 0 && h[iy * nx + ix - 1] !== Infinity;
+      var hasR = ix + 1 < nx && h[iy * nx + ix + 1] !== Infinity;
+      var hasD = iy > 0 && h[(iy - 1) * nx + ix] !== Infinity;
+      var hasU = iy + 1 < ny && h[(iy + 1) * nx + ix] !== Infinity;
+      var zl = hasL ? h[iy * nx + ix - 1] : zc;
+      var zr = hasR ? h[iy * nx + ix + 1] : zc;
+      var zd = hasD ? h[(iy - 1) * nx + ix] : zc;
+      var zu = hasU ? h[(iy + 1) * nx + ix] : zc;
+      var dzdx = (zr - zl) / ((hasL && hasR ? 2 : 1) * pitch);
+      var dzdy = (zu - zd) / ((hasD && hasU ? 2 : 1) * pitch);
+      var len = Math.hypot(dzdx, dzdy, 1);
+      return [-dzdx / len, -dzdy / len, 1 / len];
+    }
+    var data = new Float32Array(quads * 6 * 6);
+    var o = 0;
+    function put(ix, iy) {
+      var nrm = normalAt(ix, iy);
+      data[o] = minX + ix * pitch;
+      data[o + 1] = minY + iy * pitch;
+      data[o + 2] = h[iy * nx + ix];
+      data[o + 3] = nrm[0];
+      data[o + 4] = nrm[1];
+      data[o + 5] = nrm[2];
+      o += 6;
+    }
+    for (iy = 1; iy < ny; iy++) {
+      for (ix = 1; ix < nx; ix++) {
+        if (h[iy * nx + ix] === Infinity) continue;
+        if (h[iy * nx + ix - 1] === Infinity) continue;
+        if (h[(iy - 1) * nx + ix] === Infinity) continue;
+        if (h[(iy - 1) * nx + ix - 1] === Infinity) continue;
+        put(ix - 1, iy - 1);
+        put(ix, iy - 1);
+        put(ix, iy);
+        put(ix - 1, iy - 1);
+        put(ix, iy);
+        put(ix - 1, iy);
+      }
+    }
+    var tool = finishToolRecord(program, chosen[chosen.length - 1].startSeg);
+    return {
+      data: data,
+      count: quads * 6,
+      from: program.n,
+      flat: true,
+      color: finishColor(program),
+      tool: {
+        number: tool.number || 0,
+        name: tool.name || "",
+        type: tool.type || "",
+        diameter: tool.diameter || 0,
+        tipDiameter: tool.tipDiameter || 0,
+        halfAngle: tool.halfAngle || 0
+      }
+    };
+  }
+
   // Skin along the last rotary pass. One radius per angle throws away the far
   // side of a section whenever the near side lands on that same angle, which is
   // what was eating the carving between the thick and thin parts of this job.
   function buildFinishShape(program, axis) {
-    if (!program || !program.n || !program.rotary || !program.a) return null;
+    if (!program || !program.n) return null;
+    if (!(program.rotary && program.a)) return buildFlatFinishShape(program);
     var from = lastPassIndex(program);
     if (!(from < program.n)) return null;
     var axisY = axis && isFinite(axis.y) ? axis.y : 0;
@@ -2035,6 +2232,7 @@
       data: data,
       count: quads * 6,
       from: from,
+      color: finishColor(program),
       tool: {
         number: tool.number || 0,
         name: tool.name || "",

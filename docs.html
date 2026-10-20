@@ -142,12 +142,12 @@
     <p>Open NC, or drop a file on the window. A large file can take a moment. The plate and the path then show in the view.</p>
     <ul>
       <li><strong>Top</strong> looks down on the plate. Drag to slide the view. The wheel zooms. Double-click, or Fit, frames the part. Drawing a patch shape switches to this view.</li>
-      <li><strong>Iso</strong> is the 3D view. Drag to orbit. Shift-drag, or the right mouse button, slides the view.</li>
-      <li><strong>Rapids</strong> shows or hides the fast travel moves. <strong>Stock</strong> shows or hides the plate. The color bar is the depth of the cutting moves.</li>
+      <li><strong>Iso</strong> is the 3D view. Drag to orbit. The turn goes over the top and underneath. Shift-drag, or the right mouse button, slides the view. The buttons on the right jump to Top, Front, Right, Back, Left, or Bottom. Drag from any of those to keep turning. The Top button on the left is the flat view used for a patch.</li>
+      <li><strong>Paths</strong> shows or hides the cutting moves. <strong>Rapids</strong> shows or hides the fast travel moves. <strong>Stock</strong> shows or hides the plate. The color bar is the depth of the cutting moves.</li>
       <li><strong>Rotary</strong> appears when the file has a 4th axis. It is described below.</li>
     </ul>
     <p>On a flat job, coordinates are millimeters from the front-left corner of the top of the plate. X goes to the right. Y goes toward the back. Z is up. Zero on Z is the top surface, and cutting goes down into negative Z.</p>
-    <p>Play runs the path. The speed menu is how fast the picture runs, from 1× up to 5000×. The slider and the Go to box park at a percent of the path time. Prev lift and Next lift jump between retracts. The readout shows X, Y, Z, the tool, the feed, the spindle, and the current line. A rotary file also shows A, the angle of the wood in degrees.</p>
+    <p>Play runs the path. The speed menu is how fast the picture runs, from 1× up to 5000×. The slider and the Go to box park at a percent of the path time. On a regular job, each stretch the bit has already run drops away, the same as a 4th-axis job. What is left is the path still to cut. A finishing solid stays on screen. Prev lift and Next lift jump between retracts. The readout shows X, Y, Z, the tool, the feed, the spindle, and the current line. A rotary file also shows A, the angle of the wood in degrees.</p>
     <p>Space starts and stops play. The left and right arrow keys nudge the playhead. Shift makes that nudge larger. Home and End jump to the start and the end. F frames the part.</p>
     <p>The list under Job is one row per toolpath. Click the name to jump the playhead to that tool. The checkbox beside the name is for patches, described below.</p>
 
@@ -192,6 +192,11 @@
     <p>The checkboxes in the job list choose the tools. Check one row, or several. Set Tools to Checked tools, and Apply cuts only those tools. The other tools stay whole. All tools cuts every bit. Clicking the name of a row still jumps the playhead. The checkbox is the patch choice.</p>
     <p>Apply is the moment the path on screen changes. Until you press it, play and save still use the loaded path. Nothing is added or subtracted. If you move a shape after applying it, the path stays put until you press Apply again. Clear this shape removes that shape. If it had been applied, the path is rebuilt without it.</p>
     <p>After Apply, save from the playhead writes the path you are looking at. Check that picture before you tool. A shape that would remove every cut is refused, and the path is left as it was.</p>
+
+    <h2>A flat relief</h2>
+    <p>A file with a finishing pass, and no 4th axis, opens in Iso as a solid. The solid is built from the finishing passes. Roughing and an outline cut stay out of it, so the picture is the finished face. The caption names the tool and the tip. It is a preview of those passes, not a measurement.</p>
+    <p>Paths starts off, so the cut lines do not cover the solid. Press Paths to draw them. Rapids starts off for the same reason. Press Rapids to see the fast travel. Top goes back to the lines. That is the view for drawing a patch.</p>
+    <p>Play, or move the slider, and each stretch the bit has already run drops away. The solid stays. The buttons on the right of the Iso view jump to Top, Front, Right, Back, Left, or Bottom. Drag from any of those to keep turning. This picture does not change feeds or speeds.</p>
 
     <h2>A 4th-axis job</h2>
     <p>A rotary file turns the wood on a lathe that sits inside the machine. The bit stays above the blank and moves in X, Y, and Z. The A word is how far the wood has turned, in degrees. Z is the height of the bit above the center of that spin.</p>
