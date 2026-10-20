@@ -59,3 +59,13 @@ A rotary job spins the blank on a lathe inside the machine while the bit stays a
 This picture does not change the rotary settings. Saving at 0% writes the original program. A redo from later in the file looks backward to the last lifted end of the X travel, the axis along the shaft, and starts there. The percent in the name can be earlier than where you parked. The angle is set at clearance before the bit feeds down. A finish that never returns to an end of X is cut again from the beginning of that finish, using the angle reset already in the file, so the rotary is not sent back through the whole running total. Watch that start before you tool.
 
 The saved file can still contain a machine line that says Makera Z1. That line is there so the controller accepts the file. It does not mean Makera made this editor.
+
+### Open that file in Makera Studio
+
+This editor writes the file. Makera Studio is what runs it. Press Open and choose the file you just saved.
+
+![Open in Makera Studio, where a saved edit is loaded](docs/studio-open.jpg)
+
+Before you press Start, turn on Auto Z-Height Probing and set Relative to Work Origin. Set the height only. An edited file may already have removed material, so a height read anywhere else, including the path origin, is taken on a surface the file no longer expects. That wrong height can drive the bit into the work.
+
+![Auto Z-Height Probing set to Work Origin](docs/studio-z-work-origin.jpg)

@@ -99,6 +99,10 @@
       border: 1px solid var(--line);
       border-radius: 14px;
     }
+    figure.shot.narrow img {
+      width: min(560px, 100%);
+      margin-inline: auto;
+    }
     figcaption {
       color: var(--muted);
       font-size: 0.92rem;
@@ -203,10 +207,24 @@
     </figure>
     <p>This picture does not change feeds, speeds, or the rotary settings. A redo from partway through is described in Save from a percent. It starts at a lifted end of X, with the angle set before the bit feeds down. A finish that never returns to an end of X is cut again from the beginning of that finish.</p>
 
+    <h2>Open the saved file in Makera Studio</h2>
+    <p>This editor writes a file. Makera Studio is the program that runs it on the machine. The pictures in this section are Makera Studio.</p>
+    <p>Press Open and choose the file you just saved.</p>
+    <figure class="shot">
+      <img src="docs/studio-open.jpg" alt="Makera Studio, with an arrow pointing at the Open button used to load a saved file." />
+      <figcaption>Open is where a saved edit is loaded. Then you can press Start.</figcaption>
+    </figure>
+    <p>Before you press Start, turn on Auto Z-Height Probing and set Relative to Work Origin. Set the height only. An edited file may already have removed material from the part. The height has to be read at the work origin. A reading taken anywhere else, including the path origin, is taken on a surface the file no longer expects. That wrong height can drive the bit into the work.</p>
+    <figure class="shot narrow">
+      <img src="docs/studio-z-work-origin.jpg" alt="Makera Studio Auto Z-Height Probing, with Relative to set so Work Origin is selected." />
+      <figcaption>Under Auto Z-Height Probing, set Relative to Work Origin. That probe sets the height only.</figcaption>
+    </figure>
+
     <h2>Before a tool goes in the spindle</h2>
     <ol>
       <li>You are opening the file you just saved, and you know whether it is a redo, a drill file, or a patched path.</li>
       <li>The tool number in the file is the bit you are about to put in the spindle. A thread file will stop and wait for a second bit.</li>
+      <li>In Makera Studio, Auto Z-Height Probing is on and Relative to is Work Origin, so the height is read at the work origin.</li>
       <li>The work origin on the machine is the same corner this picture uses.</li>
       <li>Clearance is high enough to cross clamps, fixtures, and the part.</li>
       <li>You have watched the start of the path, above the material if you can.</li>
