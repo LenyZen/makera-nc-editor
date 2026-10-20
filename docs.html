@@ -182,16 +182,49 @@
 
     <h2>Patch a region</h2>
     <p>A patch decides which existing cuts to keep. It does not draw a new outline for the machine to follow. A circle keeps or drops the toolpath that already falls inside that circle. It does not mill a circle.</p>
-    <p>On the top view, choose Rectangle, Circle, or Polygon.</p>
+    <p>Use it when one spot on a finished plate needs to be recut, or when one region is already good and should be left out of the new file. The pictures here are a coin relief. The same steps work on any flat job.</p>
+    <p>Switch to Top. Press Paths so the cuts are drawn. Choose a shape.</p>
     <ul>
       <li><strong>Rectangle.</strong> Drag from one corner to the opposite corner.</li>
       <li><strong>Circle.</strong> Drag from the center out to the rim.</li>
       <li><strong>Polygon.</strong> Click each corner. Click the first corner again, or press Close polygon.</li>
     </ul>
-    <p>The shape stays a draft. X and Y move its center. Size is the width in millimeters. For a circle, size is the diameter. A rectangle or polygon keeps the proportion you dragged. Inside keeps the cuts in the shape and drops the rest. Outside drops the cuts in the shape and keeps the rest. A line that crosses the edge is split there. Between the pieces that remain, the bit lifts to clearance, travels, and feeds back down.</p>
-    <p>The checkboxes in the job list choose the tools. Check one row, or several. Set Tools to Checked tools, and Apply cuts only those tools. The other tools stay whole. All tools cuts every bit. Clicking the name of a row still jumps the playhead. The checkbox is the patch choice.</p>
-    <p>Apply is the moment the path on screen changes. Until you press it, play and save still use the loaded path. Nothing is added or subtracted. If you move a shape after applying it, the path stays put until you press Apply again. Clear this shape removes that shape. If it had been applied, the path is rebuilt without it.</p>
-    <p>After Apply, save from the playhead writes the path you are looking at. Check that picture before you tool. A shape that would remove every cut is refused, and the path is left as it was.</p>
+    <p>The shape stays a draft until you press Apply. A draft is dashed, and the list says draft. Play and save still use the loaded path. Nothing has been added or subtracted.</p>
+    <figure class="shot">
+      <img src="docs/patch-draft.jpg" alt="Top view of a coin toolpath with a dashed circle drawn inside it, labeled 1 in, before Apply." />
+      <figcaption>A 36 mm circle, centered at X 50 and Y 52.751, drawn on the coin. The dashed line is only a drawing. The path underneath is still the whole job.</figcaption>
+    </figure>
+    <p>X and Y move the center. Size is the width in millimeters. For a circle, size is the diameter. A rectangle or polygon keeps the proportion you dragged. Keep chooses what the shape does.</p>
+    <ul>
+      <li><strong>Inside</strong> keeps the cuts in the shape and drops the rest. The rest of the plate is left alone, and the file you save recuts that patch.</li>
+      <li><strong>Outside</strong> drops the cuts in the shape and keeps the rest. A region that is already good, or that you do not want cut again, is left out of the new file.</li>
+    </ul>
+    <figure class="shot">
+      <img src="docs/patch-controls.jpg" alt="The patch panel, with a circle set to Outside, All tools, X 50, Y 52.751, size 36, and Apply." />
+      <figcaption>The same circle after Keep was set to Outside. Apply is what changes the path. Until then, moving X, Y, Size, or Keep only moves the drawing.</figcaption>
+    </figure>
+    <p>A line that crosses the edge is split there. Between the pieces that remain, the bit lifts to clearance, travels, and feeds back down. After Apply the outline is solid and the list says on path. The view labels the shape. Inside reads 1 in. Outside reads 1 out.</p>
+    <p>Inside, on this coin, leaves the round piece and drops every cut outside it.</p>
+    <figure class="shot">
+      <img src="docs/patch-inside.jpg" alt="Top view after Apply Inside. Only a round disk of toolpath remains, labeled 1 in." />
+      <figcaption>Apply with Keep set to Inside. The cuts inside the circle stay. Everything outside it is gone from the file.</figcaption>
+    </figure>
+    <figure class="shot">
+      <img src="docs/patch-inside-shape.jpg" alt="Iso view of the round piece of the coin relief that Inside kept, with the circle labeled 1 in." />
+      <figcaption>Iso, with Paths off, shows the finishing passes that remain. It is a preview of those passes, not a measurement.</figcaption>
+    </figure>
+    <p>The same circle, with Keep set to Outside and Apply pressed again, does the opposite. The cuts inside the circle are dropped. The rest of the coin stays, with a round hole where the circle was.</p>
+    <figure class="shot">
+      <img src="docs/patch-outside.jpg" alt="Top view after Apply Outside. The coin toolpath remains as a ring, with a round hole labeled 1 out." />
+      <figcaption>Apply with Keep set to Outside. The hole is the region that will not be cut. The ring is the path that remains.</figcaption>
+    </figure>
+    <figure class="shot">
+      <img src="docs/patch-outside-shape.jpg" alt="Iso view of the coin relief with a round hole in the center, labeled 1 out." />
+      <figcaption>The same result as a solid. The rim and the lettering stay. The middle of the coin is left out.</figcaption>
+    </figure>
+    <p>The checkboxes in the job list choose the tools. Check one row, or several. Set Tools to Checked tools, and Apply cuts only those tools. The other tools stay whole. All tools, which is what these pictures use, cuts every bit. Clicking the name of a row still jumps the playhead. The checkbox is the patch choice.</p>
+    <p>If you move a shape after applying it, the path stays put until you press Apply again. Clear this shape removes that shape. A draft that was never applied leaves the path alone. A shape that was applied is taken back out, and the path is rebuilt without it. A shape that would remove every cut is refused, and the path is left as it was.</p>
+    <p>After Apply, save from the playhead writes the path you are looking at. Check that picture before you tool.</p>
 
     <h2>A flat relief</h2>
     <p>A file with a finishing pass, and no 4th axis, opens in Iso as a solid. The solid is built from the finishing passes. Roughing and an outline cut stay out of it, so the picture is the finished face. The caption names the tool and the tip. It is a preview of those passes, not a measurement.</p>

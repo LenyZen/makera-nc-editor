@@ -38,11 +38,37 @@ A typical file is four M3 holes: T1 drills the 2.5 mm pilots, the machine stops,
 
 ### Recut one bad area, or leave one area alone
 
-A finished surface can be spoiled in one spot: a chip-out in a corner, a patch of a relief that did not clean up, a logo you do not want to cut again. Draw a rectangle, a circle, or a polygon around that spot.
+A finished surface can be spoiled in one spot: a chip-out in a corner, a patch of a relief that did not clean up, a logo you do not want to cut again. On the top view, with Paths on, draw a rectangle, a circle, or a polygon around that spot.
 
-Inside keeps only the cuts in the shape, so you can recut that patch and leave the rest of the plate alone. Outside drops the cuts in the shape, so a region that is already good is left out of the new file. A line that crosses the edge is split, and the bit lifts to clearance between the pieces that remain.
+The shape is only a drawing until you press Apply. A draft is dashed. X and Y move the center, and Size is the width in millimeters. For a circle, size is the diameter. Changing Keep does not change the path until Apply is pressed again.
 
-The job list is one row per toolpath, and the name usually includes the tool, such as `[T2] finishing`. Check only that finishing row and the roughing tool stays whole. Or leave Tools on All tools and the shape applies to the whole job. Nothing changes until you press Apply, so you can nudge the shape with X, Y, and size until it sits on the right spot. Use it when rerunning a two-hour file to fix a thumbnail-sized flaw would be a waste of the bit.
+![A dashed circle drawn on a coin toolpath, before Apply](docs/patch-draft.jpg)
+
+*A 36 mm circle on a coin relief. The dashed line is a draft. The path underneath is still the whole job.*
+
+Inside keeps only the cuts in the shape, so you can recut that patch and leave the rest of the plate alone. Outside drops the cuts in the shape, so a region that is already good is left out of the new file. A line that crosses the edge is split, and the bit lifts to clearance between the pieces that remain. The patch does not mill a new outline. It keeps or drops cuts that are already in the file.
+
+![The patch panel set to Outside, with Apply](docs/patch-controls.jpg)
+
+*Keep chooses Inside or Outside. Apply is the moment the path changes.*
+
+![Top view after Inside: only the round patch of toolpath remains](docs/patch-inside.jpg)
+
+*Inside. The cuts in the circle stay. Everything outside it is dropped.*
+
+![The round piece of the coin that Inside kept](docs/patch-inside-shape.jpg)
+
+*Iso shows the finishing passes that remain. It is a preview, not a measurement.*
+
+![Top view after Outside: the coin path with a round hole](docs/patch-outside.jpg)
+
+*The same circle, with Outside. The hole is left out. The rest of the path stays.*
+
+![The coin with a round hole where the circle was](docs/patch-outside-shape.jpg)
+
+*The rim and the lettering stay. The middle of the coin is left out of the new file.*
+
+The job list is one row per toolpath, and the name usually includes the tool, such as `[T2] finishing`. Check only that finishing row, set Tools to Checked tools, and the roughing tool stays whole. Or leave Tools on All tools, as these pictures do, and the shape applies to the whole job. Clear this shape takes that shape back out. A shape that would remove every cut is refused. After Apply, save from the playhead writes the path on screen. Use it when rerunning a two-hour file to fix a thumbnail-sized flaw would be a waste of the bit.
 
 ### See a flat relief
 
