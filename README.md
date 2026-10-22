@@ -12,7 +12,11 @@
 
 Download or clone this folder, then double-click `index.html`. No install and no build step. The editor stays on your computer. It does not connect to the machine.
 
-The full guide is `docs.html`. It starts with the same warning.
+Double-click `giving-you-the-gears.html` for the gear generator. It writes an STL. It does not write an NC file.
+
+Double-click `stl-to-svg.html` to turn an STL into a closed SVG cutting drawing. It sits in this same folder. Nothing needs installing. Notes for that page are in `stl-to-svg/README.md`.
+
+The full guide is `docs.html`. It starts with the same warning. The gear pictures are at the bottom of that page.
 
 ## What it does
 
@@ -101,3 +105,23 @@ This editor writes the file. Makera Studio is what runs it. Press Open and choos
 Before you press Start, turn on Auto Z-Height Probing and set Relative to Work Origin. Set the height only. An edited file may already have removed material, so a height read anywhere else, including the path origin, is taken on a surface the file no longer expects. That wrong height can drive the bit into the work.
 
 ![Auto Z-Height Probing set to Work Origin](docs/studio-z-work-origin.jpg)
+
+## Make a gear
+
+`giving-you-the-gears.html` writes a printable STL in millimeters, Z up. It is the same independent beta as the editor. A gear file is a model for a printer. The spindle checklist in the guide is for NC files.
+
+Start at the **30 tooth** preset. Leave 30 teeth and module 2. Set backlash to **0.15** so a printed pair has room to turn. Wait for **Closed solid. Ready to save.** Then press Save gear STL. The file is named for the part, the tooth count, and the module, such as `gear-z30-m2-pa20.stl`.
+
+![A first gear: 30 teeth, module 2, backlash 0.15](docs/gear-first.jpg)
+
+*1 is the 30 tooth preset. 2 is the tooth count. 3 is the module. 4 is the backlash.*
+
+Press **2:1** for a working pair, then **Solid** and drag the gears. Side, Front, Top, and Bottom jump to that face. Fit frames them.
+
+![A 2:1 pair, with the teeth meeting](docs/gear-pair.jpg)
+
+*1 selects the pair. 2 is where the teeth meet.*
+
+The other buttons fill in a working herringbone, 90° bevel, rack, internal ring, or worm. Herringbone and helical need a look from the side. A bevel prints standing on its large end. A worm prints lying on its side. One start into 30 teeth is 30:1, and that worm usually will not be turned backward by the wheel.
+
+The annotated pictures for each of those forms are in `docs.html`, under Make a gear. Hover a dotted name in the app when a setting is unfamiliar. A round hole needs a set screw. Polygon with 6 sides is a hex across the flats.

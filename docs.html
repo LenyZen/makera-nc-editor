@@ -46,7 +46,8 @@
       font-weight: 720;
     }
     header strong { font-size: 1.02rem; }
-    header a.back { margin-left: auto; text-decoration: none; }
+    header nav { margin-left: auto; display: flex; gap: 0.9rem; flex-wrap: wrap; }
+    header nav a { text-decoration: none; }
     main {
       width: min(880px, calc(100% - 2rem));
       margin: 0 auto;
@@ -119,11 +120,15 @@
   <header>
     <span class="mark">L</span>
     <strong>Leny's Makera_NC Editor</strong>
-    <a class="back" href="index.html">Back to the editor</a>
+    <nav>
+      <a href="giving-you-the-gears.html">Gears</a>
+      <a href="stl-to-svg.html">STL to SVG</a>
+      <a href="index.html">Editor</a>
+    </nav>
   </header>
   <main>
     <h1>How this works, and how to use it</h1>
-    <p class="lead">A guide for the offline editor in this folder. Double-click <code>index.html</code> to open the app. Double-click <code>docs.html</code> to open this page.</p>
+    <p class="lead">A guide for the offline editor in this folder. Double-click <code>index.html</code> to open the app. Double-click <code>docs.html</code> to open this page. The same folder has <a href="giving-you-the-gears.html">Giving You the Gears</a>, which writes a printable gear, and <a href="stl-to-svg.html">STL to SVG</a>, which turns a solid into a cutting drawing. <a href="#gears">The gear guide</a> and <a href="#cut-svg">the cutting guide</a> are below.</p>
 
     <section class="caveat">
       <h2>Read this before you cut</h2>
@@ -282,6 +287,75 @@
         <tr><td><code>Makera_4holes_threaded.NC</code></td><td>Threaded holes that do not all share one screw.</td></tr>
       </tbody>
     </table>
+
+    <h2 id="gears">Make a gear</h2>
+    <p>Double-click <code>giving-you-the-gears.html</code>. It writes an STL for a printer. The spindle checklist above is for NC files from the editor. A gear file is millimeters, with Z up. A spur, helix, rack, or ring lies flat. A worm lies on its side. A bevel stands on its large end.</p>
+    <p>Start the backlash at 0.15 mm so a printed pair has room to turn. Wait until the notes say <strong>Closed solid. Ready to save.</strong> A red note means the teeth do not fit. Change the number it names, then save. Dotted names explain themselves when you hover them. Paper is the drawing. Dark, Warm summer, and Cool autumn are the same gears in other colors.</p>
+
+    <h3>A first gear</h3>
+    <p>Press <strong>30 tooth</strong>. Leave Teeth at 30 and Module at 2. Set Backlash to 0.15 before you print. Module is the tooth size in millimeters. A bigger module makes a bigger, stronger tooth.</p>
+    <figure class="shot">
+      <img src="docs/gear-first.jpg" alt="The 30 tooth preset, with arrows on the preset, the tooth count 30, the module 2, and the backlash 0.15." />
+      <figcaption>1 is the 30 tooth preset. 2 is the tooth count. 3 is the module. 4 is the backlash. Leave 0.15 for a first print.</figcaption>
+    </figure>
+    <p>Scroll the panel until the notes turn green, then press <strong>Save gear STL</strong>. The file name starts with the part, then the tooth count and the module. This one is <code>gear-z30-m2-pa20.stl</code>.</p>
+    <figure class="shot narrow">
+      <img src="docs/gear-save.jpg" alt="The notes reading Closed solid. Ready to save, with an arrow on the Save gear STL button." />
+      <figcaption>The green line means the solid is closed. Then save. A pair also gives you a button for the mating gear.</figcaption>
+    </figure>
+
+    <h3>A pair</h3>
+    <p>Press <strong>2:1</strong>. That is a 20 tooth gear driving a 40. At module 2 the center distance is 60 mm, the CD line under the drawing. The teeth meet with a small gap. Save each gear with its own button. The mating gear's file is the second save.</p>
+    <figure class="shot">
+      <img src="docs/gear-pair.jpg" alt="A 2 to 1 pair, with an arrow on the 2:1 preset and an arrow on the teeth where the two gears meet." />
+      <figcaption>1 selects the pair. 2 is where the teeth meet. CD is the center distance.</figcaption>
+    </figure>
+    <p>Press <strong>Solid</strong> to turn the pair. Drag the gears. <strong>Side</strong>, Front, Top, and Bottom jump to that face. The wheel zooms. Double-click, or Fit, frames them. Drawing returns to the shop drawing. Look at the solid before you print, so a bore, a face width, or a lean is the one you wanted.</p>
+    <figure class="shot">
+      <img src="docs/gear-solid.jpg" alt="The same pair as a solid, with arrows on the Solid button, the gears, and the Side button." />
+      <figcaption>1 opens the solid. 2 is the pair: drag it. 3 is the side view. Top, Front, and Fit sit on the same row.</figcaption>
+    </figure>
+
+    <h3>Other forms</h3>
+    <p>The buttons under the ratios switch the form and fill in a working pair. Each one already has backlash. Check the green line, look at the solid, then save each part. One outside mesh is happiest from about 1:1 to 5:1. For more reduction, stack 3:1 stages, or use a worm.</p>
+    <p><strong>Herringbone.</strong> Press Herringbone, then Side. The teeth lean one way and then the other, so the thrust cancels. Helical is the same lean without the V. Press Helical and the mate's hand flips itself. Parallel shafts need opposite hands.</p>
+    <figure class="shot">
+      <img src="docs/gear-herringbone.jpg" alt="A herringbone gear from the side, with an arrow on the Herringbone preset. The teeth form a V." />
+      <figcaption>Herringbone, from the side. The V is the two helixes meeting in the middle. Helical is one lean, and the mate takes the other hand.</figcaption>
+    </figure>
+    <p><strong>90° bevel.</strong> Press 90° bevel. The shafts meet at a right angle. The large end is the bottom of the STL, so the gear stands on that face when you print it. Equal teeth make a miter, both cones at 45°.</p>
+    <figure class="shot">
+      <img src="docs/gear-bevel.jpg" alt="A 90 degree bevel pair in the solid view, with an arrow on the 90° bevel preset." />
+      <figcaption>90° bevel. The two cones meet at a right angle. Print each one standing on its large end.</figcaption>
+    </figure>
+    <p><strong>Rack.</strong> Press Rack. The pinion rolls along a straight bar. One turn of a 20 tooth pinion at module 2 moves the bar 125.7 mm. The rack has no center hole. Its file name starts with <code>rack</code>.</p>
+    <figure class="shot">
+      <img src="docs/gear-rack.jpg" alt="A rack and pinion in the solid view, with an arrow on the Rack preset." />
+      <figcaption>Rack. The pinion sits on the pitch line of the bar. Save the bar and the pinion separately.</figcaption>
+    </figure>
+    <p><strong>Internal ring.</strong> Press Internal. The pinion sits inside the ring, and both shafts turn the same way. The ring's teeth point inward. Its outside is a rim. The file name starts with <code>ring</code>.</p>
+    <figure class="shot">
+      <img src="docs/gear-internal.jpg" alt="An internal ring with a pinion inside it, with an arrow on the Internal preset." />
+      <figcaption>Internal. The small gear runs inside the ring. Both shafts turn the same way.</figcaption>
+    </figure>
+    <p><strong>Worm.</strong> Press Worm. One start into 30 teeth is 30:1. The screw lies on its side in the STL. Its file starts with <code>worm</code>, and the wheel's file starts with <code>wheel</code>. A single-start worm usually stays put when the wheel tries to turn it backward. The notes say so. The save stays available.</p>
+    <figure class="shot">
+      <img src="docs/gear-worm.jpg" alt="A worm screw resting on a worm wheel, with an arrow on the Worm preset." />
+      <figcaption>Worm. The screw lies across the wheel. One start into 30 teeth is a 30:1 reduction.</figcaption>
+    </figure>
+    <p>A round hole needs a set screw. Polygon with 6 sides is a hex measured across the flats. Solid leaves no hole. The hole stays straight through the part, including on a helix and a bevel.</p>
+
+    <h2 id="cut-svg">Turn an STL into a cutting drawing</h2>
+    <p>Double-click <code>stl-to-svg.html</code>, in the same folder as the editor. Nothing extra is installed. The page opens from the disk. It writes an SVG for Makera Studio. The spindle checklist above is for NC files from the editor. Dotted names explain themselves. Paper, Dark, Warm summer, and Cool autumn match the gear page.</p>
+    <p>Press Load STL, or press Sample ornament. The sample is a 50 mm disk, 1.25 mm thick, with a through hole, a loose inner disk, and a recess that stops partway through the sheet.</p>
+    <ol>
+      <li>Press Top so the red slice lies in the sheet. Drag the solid to look around. Use this view locks the slice to the direction you are looking.</li>
+      <li>Leave the slice in the middle of a 1.25 mm ornament. A through hole stays. A recess that does not go through disappears. Move the slice near a face and generate again when you want to see which openings are only decorative.</li>
+      <li>Leave gap repair at 0.05 mm for intricate work. The page lists every gap and waits. Joining a gap closes the outline. Joining a real slot removes that opening.</li>
+      <li>Press Generate cutting pattern. Pale is the acrylic that stays. Warm gray is what the cutter removes. Amber is a piece that comes loose once the cut around it is made. A dashed red line is open, and it is left out of the file.</li>
+      <li>Press Export SVG. Every path is closed. The width and height are millimetres, and 1 unit in the file is 1 mm. In Makera Studio, confirm the imported width matches the size on the page before you cut.</li>
+    </ol>
+    <p>The path is the centre of the cut. The file does not offset for a bit. Scale 1 keeps the STL's own millimetres.</p>
 
     <footer>
       <p>Leny's Makera_NC Editor is an independent beta. It is not a Makera product. There are no guarantees. Check every path before you tool. The author takes no responsibility for issues that arise from using this app. Use at your own risk.</p>

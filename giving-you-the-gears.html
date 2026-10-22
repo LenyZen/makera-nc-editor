@@ -1,0 +1,3565 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Giving You the Gears</title>
+<style>
+  :root {
+    --board: #e3ddd2;
+    --sheet: #f6f3ec;
+    --ink: #221e1a;
+    --muted: #6f675e;
+    --rule: #d4cdc2;
+    --red: #a33b28;
+    --fill: #e4dcd0;
+    --fill-b: #d4c9b8;
+    --guide: #b7b0a4;
+    --ok: #234237;
+    color-scheme: light;
+  }
+  html[data-theme="dark"] {
+    --board: #141311;
+    --sheet: #221f1c;
+    --ink: #f4efe6;
+    --muted: #b3a89c;
+    --rule: #3c3833;
+    --red: #e08a72;
+    --fill: #3d362e;
+    --fill-b: #4e453b;
+    --guide: #7a7166;
+    --ok: #9dccb4;
+    color-scheme: dark;
+  }
+  html[data-theme="summer"] {
+    --board: #f6e7c1;
+    --sheet: #fff9ee;
+    --ink: #3d2c16;
+    --muted: #8d6a3e;
+    --rule: #efd7a8;
+    --red: #d85a2a;
+    --fill: #ffe6bf;
+    --fill-b: #f8d39a;
+    --guide: #e0c48a;
+    --ok: #2c6a42;
+    color-scheme: light;
+  }
+  html[data-theme="autumn"] {
+    --board: #c9d3da;
+    --sheet: #f2f5f7;
+    --ink: #1b2830;
+    --muted: #5c6d7a;
+    --rule: #c5d1d9;
+    --red: #8e4d5c;
+    --fill: #d7e2ea;
+    --fill-b: #c5d3de;
+    --guide: #9aadb8;
+    --ok: #1d5e5a;
+    color-scheme: light;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    background: var(--board);
+    color: var(--ink);
+    font-family: "Segoe UI", system-ui, sans-serif;
+    font-size: 14px;
+    line-height: 1.4;
+    overflow: hidden;
+  }
+  .page {
+    max-width: 1240px;
+    height: 100vh;
+    margin: 0 auto;
+    padding: 14px 18px 14px;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 332px;
+    grid-template-rows: auto minmax(0, 1fr);
+    gap: 12px 18px;
+  }
+  header {
+    grid-column: 1 / -1;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    gap: 18px;
+  }
+  .title { min-width: 0; }
+  .views {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 6px;
+    flex: none;
+  }
+  .views span {
+    color: var(--muted);
+    font-size: 11px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    margin-right: 2px;
+  }
+  h1 {
+    margin: 0;
+    font-family: "Palatino Linotype", Palatino, "Iowan Old Style", serif;
+    font-weight: normal;
+    font-size: 30px;
+    letter-spacing: -0.02em;
+    line-height: 1;
+  }
+  h1 .by {
+    display: block;
+    font-size: 0.5em;
+    letter-spacing: 0;
+    margin-bottom: 4px;
+  }
+  header p {
+    margin: 4px 0 0;
+    color: var(--muted);
+    max-width: 46rem;
+    font-size: 13px;
+  }
+  .sheet {
+    position: relative;
+    background: var(--sheet);
+    border: 1px solid var(--ink);
+    min-height: 0;
+    height: 100%;
+  }
+  canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+    cursor: grab;
+    touch-action: none;
+  }
+  canvas:active { cursor: grabbing; }
+  canvas[hidden] { display: none; }
+  #solid {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+  }
+  .orbit {
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    z-index: 3;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    max-width: calc(100% - 16px);
+  }
+  .orbit button {
+    font: 12px "Segoe UI", sans-serif;
+    cursor: pointer;
+    background: var(--sheet);
+    color: var(--ink);
+    border: 1px solid var(--ink);
+    padding: 3px 7px;
+  }
+  .orbit button[aria-pressed="true"] {
+    background: var(--ink);
+    color: var(--sheet);
+  }
+  .orbit .split { width: 8px; }
+  .plate {
+    position: absolute;
+    right: 10px;
+    bottom: 10px;
+    border: 1px solid var(--ink);
+    background: var(--sheet);
+    padding: 7px 9px 8px;
+    min-width: 168px;
+    pointer-events: none;
+    z-index: 2;
+  }
+  .plate strong {
+    display: block;
+    font-family: "Palatino Linotype", Palatino, serif;
+    font-weight: normal;
+    font-size: 14px;
+  }
+  .plate span {
+    display: block;
+    margin-top: 2px;
+    font-family: Consolas, "Cascadia Mono", monospace;
+    font-size: 11px;
+    color: var(--muted);
+  }
+  .hint {
+    position: absolute;
+    left: 10px;
+    bottom: 10px;
+    max-width: calc(100% - 260px);
+    color: var(--muted);
+    font-size: 11px;
+    pointer-events: none;
+    z-index: 2;
+    background: var(--sheet);
+    padding: 2px 4px;
+  }
+  .panel {
+    background: var(--sheet);
+    border: 1px solid var(--ink);
+    padding: 14px 16px 16px;
+    align-self: stretch;
+    min-height: 0;
+    overflow: auto;
+  }
+  .presets { display: flex; flex-wrap: wrap; gap: 6px; }
+  .presets button, .angles button, .views button, .views a, button.save, button.ghost {
+    font: 12px "Segoe UI", sans-serif;
+    cursor: pointer;
+  }
+  .presets button, .angles button, .views button, .views a, button.ghost {
+    background: transparent;
+    color: var(--ink);
+    border: 1px solid var(--ink);
+    padding: 4px 8px;
+  }
+  .views a { text-decoration: none; }
+  .presets button[aria-pressed="true"],
+  .views button[aria-pressed="true"],
+  .angles button[aria-pressed="true"] {
+    background: var(--ink);
+    color: var(--sheet);
+  }
+  h2 {
+    margin: 16px 0 0;
+    font-family: "Palatino Linotype", Palatino, serif;
+    font-size: 13px;
+    font-weight: normal;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
+  fieldset { border: 0; margin: 0; padding: 0; }
+  fieldset:disabled { opacity: 0.38; }
+  .field[hidden] { display: none; }
+  .field {
+    display: grid;
+    grid-template-columns: 1fr 7.2rem;
+    gap: 10px;
+    align-items: center;
+    border-bottom: 1px solid var(--rule);
+    padding: 6px 0;
+  }
+  .field span { font-size: 13px; }
+  .field em { font-style: normal; color: var(--muted); font-size: 11px; display: block; }
+  input[type="number"], select {
+    width: 100%;
+    border: 0;
+    border-bottom: 1px solid var(--ink);
+    background: transparent;
+    color: var(--ink);
+    font-family: Consolas, "Cascadia Mono", monospace;
+    font-size: 14px;
+    text-align: right;
+    padding: 2px 0;
+    border-radius: 0;
+  }
+  input:focus, select:focus { outline: none; border-bottom-color: var(--red); }
+  .check {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 0 0;
+    font-size: 13px;
+  }
+  .angles { display: flex; flex-wrap: wrap; gap: 6px; padding-top: 8px; }
+  .readout {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 8px;
+    font-variant-numeric: tabular-nums;
+  }
+  .readout th {
+    text-align: left;
+    font-weight: normal;
+    color: var(--muted);
+    font-size: 12px;
+    padding: 3px 0;
+  }
+  .readout td {
+    text-align: right;
+    font-family: Consolas, "Cascadia Mono", monospace;
+    font-size: 13px;
+    padding: 3px 0 3px 8px;
+  }
+  .notes { margin: 10px 0 0; padding: 0; list-style: none; }
+  .notes li { color: var(--red); font-size: 12px; margin-top: 4px; }
+  .notes li.ok { color: var(--ok); }
+  .actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+  button.save {
+    background: var(--ink);
+    color: var(--sheet);
+    border: 0;
+    padding: 9px 12px;
+  }
+  button.save:disabled, button.ghost:disabled { opacity: 0.35; cursor: not-allowed; }
+  .fineprint { margin: 12px 0 0; color: var(--muted); font-size: 12px; }
+  .story { margin: 8px 0 0; font-size: 13px; }
+  .ask { cursor: help; }
+  .ask > span:first-child { border-bottom: 1px dotted var(--muted); }
+  .ask .bubble { display: none; }
+  #floater {
+    position: fixed;
+    z-index: 20;
+    width: min(320px, calc(100vw - 16px));
+    background: var(--sheet);
+    color: var(--ink);
+    border: 1px solid var(--ink);
+    padding: 8px 10px;
+    font-size: 12px;
+    line-height: 1.45;
+    pointer-events: none;
+  }
+  #floater[hidden] { display: none; }
+  @media (max-width: 860px) {
+    body { overflow: auto; }
+    .page { height: auto; grid-template-columns: 1fr; grid-template-rows: auto auto auto; }
+    .sheet { height: 62vh; min-height: 380px; }
+    .panel { max-height: none; overflow: visible; }
+    h1 { font-size: 28px; }
+    header { flex-wrap: wrap; }
+  }
+</style>
+<script>
+try {
+  var savedTheme = localStorage.getItem("gyg-theme");
+  if (savedTheme === "dark" || savedTheme === "summer" || savedTheme === "autumn") {
+    document.documentElement.dataset.theme = savedTheme;
+  }
+} catch (e) {}
+</script>
+</head>
+<body>
+<div class="page">
+  <header>
+    <div class="title">
+      <h1><span class="by">Leny is:</span>Giving You the Gears</h1>
+      <p>Spur, helical, herringbone, rack, internal, worm, and 90° bevel gears, in millimeters. Set the tooth, check the pair, turn the solid to see every side, then save an STL. A spur, helix, rack, or ring lies flat. A worm lies on its side. A bevel stands on its large end.</p>
+    </div>
+    <div class="views" role="group" aria-label="Display">
+      <a href="index.html">NC editor</a>
+      <a href="stl-to-svg.html">STL to SVG</a>
+      <a href="docs.html#gears">How to use</a>
+      <span>View</span>
+      <button type="button" data-theme="paper" aria-pressed="true">Paper</button>
+      <button type="button" data-theme="dark" aria-pressed="false">Dark</button>
+      <button type="button" data-theme="summer" aria-pressed="false">Warm summer</button>
+      <button type="button" data-theme="autumn" aria-pressed="false">Cool autumn</button>
+    </div>
+  </header>
+
+  <div class="sheet">
+    <canvas id="view" aria-label="Gear drawing"></canvas>
+    <canvas id="solid" hidden aria-label="Solid view of the gears"></canvas>
+    <div class="orbit" role="group" aria-label="Turn the view">
+      <button type="button" data-viewmode="draw" aria-pressed="true">Drawing</button>
+      <button type="button" data-viewmode="solid">Solid</button>
+      <span class="split"></span>
+      <button type="button" data-cam="top">Top</button>
+      <button type="button" data-cam="bottom">Bottom</button>
+      <button type="button" data-cam="front">Front</button>
+      <button type="button" data-cam="side">Side</button>
+      <span class="split"></span>
+      <button type="button" data-zoom="out" aria-label="Zoom out">−</button>
+      <button type="button" data-zoom="in" aria-label="Zoom in">+</button>
+      <button type="button" data-zoom="fit">Fit</button>
+    </div>
+    <div class="hint" id="hint">Scroll to inspect a tooth. Drag to move. Double-click to fit.</div>
+    <div class="plate">
+      <strong>Giving You the Gears</strong>
+      <span id="plate-line">Spur · mm · Z up</span>
+    </div>
+  </div>
+
+  <aside class="panel">
+    <div class="presets ask">
+      <button type="button" data-preset="single" aria-pressed="true">30 tooth</button>
+      <button type="button" data-preset="even">1:1</button>
+      <button type="button" data-preset="two">2:1</button>
+      <button type="button" data-preset="pair">3:1</button>
+      <button type="button" data-preset="four">4:1</button>
+      <button type="button" data-preset="helical">Helical</button>
+      <button type="button" data-preset="herringbone">Herringbone</button>
+      <button type="button" data-preset="bevel">90° bevel</button>
+      <button type="button" data-preset="rack">Rack</button>
+      <button type="button" data-preset="internal">Internal</button>
+      <button type="button" data-preset="worm">Worm</button>
+      <span class="bubble">These are ordinary meshes. 1:1 reverses the spin and keeps the torque. 2:1 doubles torque and halves speed. 3:1, 16 teeth into 48, is a common hobby reduction. 4:1 is about as far as one mesh should go. Two 3:1 meshes in a row make 9:1, nine times the torque at one ninth the speed. Helical is a 20° pair with enough face that one tooth stays in mesh. Herringbone is that same idea in a V, so the push along the shaft cancels. 90° bevel is 20 teeth into 40 with the shafts at a right angle. Rack is 10 straight teeth under a 20-tooth pinion. Internal is a 20-tooth pinion inside a 60-tooth ring. Worm is a single-start screw driving a 30-tooth wheel, 30:1, with the shafts at 90°.</span>
+    </div>
+
+    <h2>Tooth</h2>
+    <label class="field ask"><span id="teeth-name">Teeth</span><input id="teeth" type="number" min="1" max="240" step="1" value="30"><span class="bubble">The count around the gear. The ratio of a pair is just the two counts. A 20-tooth gear driving a 60-tooth gear is 3:1: the large one turns once each time the small one turns three times, and on paper it delivers three times the torque. Below about 17 teeth at 20°, the root is undercut unless you add profile shift. On a rack this is how many straight teeth are in the bar. On a worm it is the number of starts, usually 1, 2, or 4. One start is a big reduction. Four starts is easier to turn backward.</span></label>
+    <label class="field ask"><span>Module <em>millimeters</em></span><input id="module" type="number" min="0.2" max="20" step="0.05" value="2"><span class="bubble">How big each tooth is. Pitch diameter is module times teeth, so 30 teeth at module 2 is a 60 mm pitch circle. Two gears mesh only when the module matches. Module 1 is a fine tooth. Module 2 is twice as coarse and much stronger. Choose the module from the load, then choose teeth for the ratio.</span></label>
+    <label class="field ask"><span>Diametral pitch <em>sets the module</em></span><input id="dp" type="number" min="1" max="128" step="0.5" value="12.7"><span class="bubble">The inch version of module. A higher number is a smaller tooth. Pitch diameter in inches is teeth divided by this pitch. Typing here sets module to 25.4 divided by the pitch. A pitch of 32 is a fine model tooth. A pitch of 12 is a chunky one.</span></label>
+    <label class="field ask"><span>Pressure angle <em>degrees</em></span><input id="angle" type="number" min="10" max="35" step="0.5" value="20"><span class="bubble">How steeply the tooth leans. 20° is the one to start with. 14.5° is an older, slightly quieter shape with a thinner root. 25° has a fatter, stronger root, and it pushes the shafts apart harder, so the bearings work more. Both gears need the same angle.</span></label>
+    <div class="angles">
+      <button type="button" data-angle="14.5">14.5°</button>
+      <button type="button" data-angle="20">20°</button>
+      <button type="button" data-angle="25">25°</button>
+    </div>
+    <label class="field ask"><span>Profile shift <em>coefficient</em></span><input id="shift" type="number" min="-0.8" max="1.2" step="0.05" value="0"><span class="bubble">Slides the tooth form out (positive) or in (negative). The usual reason is a small pinion. A 12-tooth gear at 20° wants about +0.4 to +0.5 so the root is not gouged away. Positive shift also makes the gear a little larger and moves the center distance out.</span></label>
+    <label class="field ask"><span>Backlash <em>mm at the pitch circle, split across a pair</em></span><input id="backlash" type="number" min="0" max="2" step="0.01" value="0"><span class="bubble">The gap between meshing teeth, at the pitch circle. Zero is the textbook mesh, and a printed pair at zero will usually bind. 0.1 to 0.2 mm is a sound start. The gap is split across the two gears. Too much backlash makes the drive jump when you reverse.</span></label>
+    <label class="field ask"><span>Form</span>
+      <select id="form">
+        <option value="spur" selected>Spur</option>
+        <option value="helical">Helical</option>
+        <option value="herringbone">Herringbone</option>
+        <option value="bevel">90° bevel</option>
+        <option value="rack">Rack</option>
+        <option value="internal">Internal ring</option>
+        <option value="worm">Worm</option>
+      </select>
+      <span class="bubble">Spur is a straight tooth. Helical leans one way through the thickness, which is quieter and pushes along the shaft. Herringbone is two helices in a V, so those pushes cancel. A 90° bevel turns the corner: the shafts are at a right angle, and the tooth tapers toward the point where the shafts would meet. A rack is a straight row of teeth, and a round pinion drives it. An internal ring has the teeth on the inside, and the pinion turns the same way as the ring. A worm is a screw. One turn of a single-start worm advances the wheel by one tooth, with the shafts at 90°.</span>
+    </label>
+    <label class="field ask"><span>Helix <em>degrees</em></span><input id="helix" type="number" min="0" max="45" step="0.5" value="0"><span class="bubble">The lean of a helical tooth, or of each half of a herringbone. 15° or 20° is the usual choice. Both gears use the same angle. The module above is the normal module, the real size of the tooth. The blank grows across as the helix increases: pitch diameter is module times teeth, divided by the cosine of the helix. A bevel ignores this and uses a straight tooth.</span></label>
+    <div class="angles" id="helix-chips">
+      <button type="button" data-helix="0">Spur</button>
+      <button type="button" data-helix="15">15°</button>
+      <button type="button" data-helix="20">20°</button>
+      <button type="button" data-helix="30">30°</button>
+    </div>
+    <label class="field ask"><span>Hand</span>
+      <select id="hand">
+        <option value="right" selected>Right</option>
+        <option value="left">Left</option>
+      </select>
+      <span class="bubble">Right-hand and left-hand are mirror images. Parallel shafts need one of each, or the teeth walk apart through the thickness. The mating gear is set to the opposite hand. On a herringbone, this is the hand of the lower half. The upper half is the mirror, and the two pushes cancel. A worm and its wheel use the same hand. A right-hand screw is the usual one.</span>
+    </label>
+    <label class="field ask" id="quotient-row" hidden><span>Diameter quotient</span><input id="quotient" type="number" min="6" max="20" step="0.5" value="10"><span class="bubble">The worm's pitch diameter, measured in modules. Diameter = quotient times module. 8 to 12 is the usual range. A quotient of 10 at module 2 is a 20 mm pitch diameter. A larger quotient makes a fatter screw, a shallower lead, and a stronger push along the shaft. A single start with a large quotient may refuse to be turned backward by the wheel.</span></label>
+
+    <h2>Blank</h2>
+    <label class="field ask"><span>Face width <em id="face-unit">mm, the STL thickness</em></span><input id="face" type="number" min="0.4" max="120" step="0.5" value="8"><span class="bubble">How wide the tooth is. A useful face is about 6 to 12 times the module. Module 2 often wants 10 to 16 mm. A helical gear wants enough face that the twist covers a whole tooth. A herringbone wants about twice that, because each half of the V needs its own tooth in mesh. On a bevel this length runs along the cone, from the large end toward the point, and about a third of the cone distance is as long as it should go. On a rack this is the bar's thickness. On a worm this is the screw's length, and the wheel is cut shorter so it can sit on the screw. The note under the sizes says when the face is short.</span></label>
+    <label class="field ask"><span>Center</span>
+      <select id="bore-shape">
+        <option value="round" selected>Round</option>
+        <option value="solid">Solid</option>
+        <option value="poly">Polygon</option>
+      </select>
+      <span class="bubble">Solid is a blank, for gluing onto a hub or drilling later. A round hole needs a set screw, a key, or a tight fit, or the gear spins on the shaft. A flat-sided hole locks to a matching shaft. Hexagon is the usual hobby-motor shaft. A square or a pentagon locks the same way. Past about eight sides the hole starts to slip like a circle.</span>
+    </label>
+    <div id="side-row" hidden>
+      <label class="field ask"><span>Sides</span><input id="bore-sides" type="number" min="3" max="12" step="1" value="6"><span class="bubble">3 is a triangle, 4 a square, 5 a pentagon, 6 a hexagon, 8 an octagon. The size below is across the flats, the way a wrench is measured. A 6 mm hex shaft wants 6 across the flats, plus about 0.15 mm if a printed hole must slide on.</span></label>
+      <div class="angles" id="side-chips">
+        <button type="button" data-sides="4" data-for="a">Square</button>
+        <button type="button" data-sides="5" data-for="a">Pentagon</button>
+        <button type="button" data-sides="6" data-for="a">Hexagon</button>
+        <button type="button" data-sides="8" data-for="a">Octagon</button>
+      </div>
+    </div>
+    <label class="field ask"><span>Bore <em id="bore-unit">diameter, mm</em></span><input id="bore" type="number" min="0" max="200" step="0.1" value="8"><span class="bubble">Round holes use the shaft diameter. Flat-sided holes use the across-flats width. The corners of a hexagon reach farther out than the flats, and the page keeps those corners inside the root. Printed holes come out tight, so add about 0.15 mm when the shaft must slide in.</span></label>
+    <label class="field ask"><span>Curve quality</span>
+      <select id="quality">
+        <option value="8">Draft</option>
+        <option value="14" selected>Smooth</option>
+        <option value="28">Fine</option>
+      </select>
+      <span class="bubble">How many segments draw each flank. Draft is a lighter file. Smooth is the right default. Fine is closer to a true involute, which shows when the module is small and a facet on the tooth would be visible.</span>
+    </label>
+
+    <h2>Mating gear</h2>
+    <label class="check ask"><input id="pair" type="checkbox"> Draw and save a second gear<span class="bubble">Draws the second gear where the teeth meet, and refuses the file if a parallel pair cuts through itself. Same module, same pressure angle, same face. A helix uses the opposite hand. A bevel puts the second shaft at 90°, and the tooth counts set both the ratio and the cone angles. A 20 into a 20 is 45° each. A 20 into a 40 is about 27° and 63°. With a rack, the second gear is the pinion. With an internal ring, it is the pinion inside. With a worm, it is the wheel, and both hands match.</span></label>
+    <fieldset id="mate" disabled>
+      <label class="field ask"><span>Teeth</span><input id="teeth-b" type="number" min="6" max="240" step="1" value="48"><span class="bubble">Teeth on the second gear. Divide the larger count by the smaller one for the ratio. Driving the smaller gear multiplies torque and cuts speed. Driving the larger gear does the opposite. A 16 driving a 48 is 3:1. A 48 driving a 16 is a 3 times speed-up, with about a third of the torque.</span></label>
+      <label class="field ask"><span>Profile shift</span><input id="shift-b" type="number" min="-0.8" max="1.2" step="0.05" value="0"><span class="bubble">Shift on the second gear only. The center distance uses both shifts. Leave this at zero unless this gear is the small one.</span></label>
+      <label class="field ask"><span>Center</span>
+        <select id="bore-shape-b">
+          <option value="round" selected>Round</option>
+          <option value="solid">Solid</option>
+          <option value="poly">Polygon</option>
+        </select>
+        <span class="bubble">The second gear can have a different shaft. A hex pinion on a motor and a round hole on the output gear is a usual pair. Solid means this gear has no hole of its own.</span>
+      </label>
+      <div id="side-row-b" hidden>
+        <label class="field ask"><span>Sides</span><input id="bore-sides-b" type="number" min="3" max="12" step="1" value="6"><span class="bubble">Same idea as the first gear. 5 is a pentagon, 6 a hexagon. Any count from 3 to 12 is a regular hole.</span></label>
+        <div class="angles" id="side-chips-b">
+          <button type="button" data-sides="4" data-for="b">Square</button>
+          <button type="button" data-sides="5" data-for="b">Pentagon</button>
+          <button type="button" data-sides="6" data-for="b">Hexagon</button>
+          <button type="button" data-sides="8" data-for="b">Octagon</button>
+        </div>
+      </div>
+      <label class="field ask"><span>Bore <em id="bore-unit-b">diameter, mm</em></span><input id="bore-b" type="number" min="0" max="200" step="0.1" value="8"><span class="bubble">Shaft size for the second gear. Diameter for a round hole, across the flats for a square, pentagon, hexagon, or anything with more sides.</span></label>
+    </fieldset>
+
+    <h2>Sizes</h2>
+    <label class="field ask"><span>Input torque <em>newton-metres</em></span><input id="torque-in" type="number" min="0" max="500" step="0.05" value="0.2"><span class="bubble">The twist you put into the driver. A small hobby motor is often 0.05 to 0.3 N·m. The result is pure geometry. A decent metal spur mesh returns about 95% of that torque. A printed mesh can lose more, especially if the teeth are tight or the shafts are not parallel.</span></label>
+    <label class="field ask"><span>Driver</span>
+      <select id="driver">
+        <option value="a" selected>This gear</option>
+        <option value="b">Mating gear</option>
+      </select>
+      <span class="bubble">Which gear the motor is on. The other one is the output. Leave this on the smaller gear for a reduction. Switch it to see the same pair as a speed-up, with less torque and more speed.</span>
+    </label>
+    <table class="readout" id="readout"></table>
+    <p class="story" id="story"></p>
+    <ul class="notes" id="notes"></ul>
+    <div class="actions">
+      <button class="save" id="save-a" type="button">Save gear STL</button>
+      <button class="ghost" id="save-b" type="button" hidden>Save mate STL</button>
+    </div>
+    <p class="fineprint">Solid turns the same parts in space. Drag to look around, or jump to the top, bottom, front, or side. The working tooth is an involute. A helix leans that tooth through the thickness, and a herringbone mirrors the lean so the shaft is not pushed endwise. A 90° bevel tapers toward the point where the shafts meet, and the large end sits on the printer bed. A rack is straight teeth on a bar. An internal ring has the teeth pointing inward, with a rim outside the roots. A worm is a screw; its wheel is a helical gear at the screw's lead angle, and the two shafts are at 90°. The hole stays straight, so a round or hex shaft still slides through. Below the base circle the root drops straight to the gullet, rather than a hobbed fillet. Add a little backlash, about 0.1–0.2 mm, when a printed pair comes out tight. One spur mesh is happiest between about 1:1 and 5:1. For more, stack meshes, or use a worm: a single start into 30 teeth is 30:1.</p>
+  </aside>
+</div>
+<div id="floater" hidden></div>
+
+<script>
+(function () {
+  const $ = (id) => document.getElementById(id);
+  const canvas = $("view");
+  const view = { x: 0, y: 0, k: 1 };
+  let model = null;
+  let viewMode = "draw";
+  let fit = null;
+  let writingDp = false;
+
+  function q(n) { return Math.round(n * 1e6) / 1e6; }
+  function clamp(n, a, b) { return Math.max(a, Math.min(b, n)); }
+  function inv(phi) { return Math.tan(phi) - phi; }
+  function fmt(n) {
+    if (!Number.isFinite(n)) return "—";
+    const a = Math.abs(n);
+    const d = a >= 100 ? 1 : a >= 10 ? 2 : 3;
+    return n.toFixed(d);
+  }
+
+  function num(id) {
+    const v = Number($(id).value);
+    return Number.isFinite(v) ? v : null;
+  }
+
+  function readShape(shapeId, sidesId) {
+    const shape = $(shapeId).value;
+    if (shape === "solid") return { shape: "solid", sides: 0 };
+    if (shape === "poly") return { shape: "poly", sides: clamp(Math.round(num(sidesId) || 6), 3, 12) };
+    return { shape: "round", sides: 0 };
+  }
+
+  function holeReach(shape, size, sides) {
+    if (shape === "solid" || !(size > 0)) return 0;
+    if (shape === "poly") return (size / 2) / Math.cos(Math.PI / clamp(sides, 3, 12));
+    return size / 2;
+  }
+
+  function read() {
+    const teeth = num("teeth");
+    const module = num("module");
+    const angle = num("angle");
+    const shift = num("shift");
+    const backlash = num("backlash");
+    const face = num("face");
+    const bore = num("bore");
+    const helix = num("helix");
+    const steps = Number($("quality").value);
+    if ([teeth, module, angle, shift, backlash, face, bore, helix].some((v) => v === null)) return null;
+    const pair = $("pair").checked;
+    const center = readShape("bore-shape", "bore-sides");
+    const centerB = readShape("bore-shape-b", "bore-sides-b");
+    const formValue = $("form").value;
+    const known = { helical: 1, herringbone: 1, bevel: 1, rack: 1, internal: 1, worm: 1 };
+    const form = known[formValue] ? formValue : "spur";
+    const helical = form === "helical" || form === "herringbone";
+    return {
+      teeth: Math.round(teeth),
+      module, angle, shift, backlash, face, bore, steps, pair,
+      form,
+      quotient: clamp(num("quotient") || 10, 6, 20),
+      helix: helical ? clamp(helix, 0, 45) : 0,
+      hand: $("hand").value === "left" ? "left" : "right",
+      boreShape: center.shape,
+      boreSides: center.sides,
+      teethB: Math.round(num("teeth-b") || 0),
+      shiftB: num("shift-b"),
+      boreB: num("bore-b"),
+      boreShapeB: centerB.shape,
+      boreSidesB: centerB.sides,
+      torqueIn: Math.max(0, num("torque-in") || 0),
+      driver: $("driver").value === "b" ? "b" : "a"
+    };
+  }
+
+  // External involute, spur or helical. The module and pressure angle typed in
+  // are the normal ones. The outline is the transverse section:
+  // mt = mn / cos β,  tan αt = tan αn / cos β,
+  // tooth thickness st = mt (π/2 + 2 x tan αn) − backlash.
+  // Flank from the tooth centerline: θ(r) = st/(2 rp) + inv(αt) − inv(αr).
+  function makeGear(spec) {
+    const warnings = [];
+    const z = spec.teeth;
+    const m = spec.module;
+    const alphaN = spec.angle * Math.PI / 180;
+    const shift = spec.shift;
+    const steps = spec.steps;
+    let form = spec.form;
+    if (form !== "helical" && form !== "herringbone" && form !== "bevel") {
+      form = (Number(spec.helix) > 0.05) ? "helical" : "spur";
+    }
+    const bevel = form === "bevel";
+    const helix = bevel ? 0 : clamp(Number(spec.helix) || 0, 0, 45);
+    const beta = helix * Math.PI / 180;
+    const handSign = spec.hand === "left" ? -1 : 1;
+    const delta = bevel ? clamp(Number(spec.cone) || 45, 8, 82) * Math.PI / 180 : 0;
+    if (z < 6 || z > 240) return fail("Teeth need to be between 6 and 240.");
+    if (m <= 0) return fail("Module has to be greater than zero.");
+    if (alphaN < 0.15 || alphaN > 0.7) return fail("Pressure angle looks wrong. Use something near 14.5, 20, or 25.");
+    if (spec.face <= 0) return fail("Face width has to be greater than zero.");
+
+    const cosB = Math.cos(beta);
+    const mt = m / cosB;
+    const alphaT = Math.atan(Math.tan(alphaN) / cosB);
+    const rp = mt * z / 2;
+    const rb = rp * Math.cos(alphaT);
+    const toothCos = bevel ? Math.cos(delta) : 1;
+    const ra = rp + m * (1 + shift) * toothCos;
+    let rf = rp - m * (1.25 - shift) * toothCos;
+    if (rf < m * 0.25) rf = m * 0.25;
+    if (ra <= rf) return fail("That shift swallows the tooth. Ease the profile shift back.");
+
+    const thickness = (Math.PI / 2 + 2 * shift * Math.tan(alphaN)) * mt - spec.backlash;
+    if (thickness <= m * 0.04) return fail("Backlash is wider than the tooth. Reduce it.");
+    const halfThick = thickness / (2 * rp);
+
+    function ang(r) {
+      const c = clamp(rb / r, -1, 1);
+      const phi = Math.acos(c);
+      return halfThick + inv(alphaT) - inv(phi);
+    }
+    function solveAng(target, rMin, rMax) {
+      let lo = rMin;
+      let hi = rMax;
+      for (let i = 0; i < 32; i++) {
+        const mid = (lo + hi) / 2;
+        if (ang(mid) > target) lo = mid;
+        else hi = mid;
+      }
+      return (lo + hi) / 2;
+    }
+
+    let rLo = Math.max(rf, rb * (1 + 1e-5));
+    let rHi = ra;
+    if (rHi <= rLo) return fail("The tip is inside the root. Change the module, teeth, or shift.");
+
+    const valleyLimit = Math.PI / z - 1e-4;
+    if (ang(rLo) > valleyLimit) {
+      if (ang(rHi) > valleyLimit) return fail("The teeth overlap each other. Lower the profile shift.");
+      rLo = solveAng(valleyLimit, rLo, rHi);
+      warnings.push("The deep end of the involute was trimmed so neighboring teeth do not cross.");
+    }
+
+    let pointed = false;
+    if (ang(rHi) < 8e-4) {
+      pointed = true;
+      if (ang(rLo) <= 8e-4) return fail("The tooth comes to a point before it has a flank. Lower the shift or add teeth.");
+      rHi = solveAng(8e-4, rLo, rHi);
+      warnings.push("The tip comes to a point inside the usual outside diameter.");
+    }
+    if (rHi - rLo < m * 0.02) return fail("There is not enough flank left to make a tooth.");
+
+    const undercutVirtual = 2 * (1 - shift) / (Math.sin(alphaN) ** 2);
+    const undercutZ = bevel ? undercutVirtual * Math.cos(delta) : undercutVirtual * (cosB ** 3);
+    if (z < undercutZ - 0.4) {
+      warnings.push("About " + Math.ceil(undercutZ) + " teeth is the undercut line for this angle, helix, and shift. A positive profile shift on a small pinion keeps more of the involute. Look at the mesh before printing a loaded pair.");
+    }
+
+    const pts = [];
+    function push(x, y) {
+      const px = q(x);
+      const py = q(y);
+      const prev = pts[pts.length - 1];
+      if (prev && Math.hypot(prev[0] - px, prev[1] - py) < m * 1e-5) return;
+      pts.push([px, py]);
+    }
+
+    const pitch = (Math.PI * 2) / z;
+    for (let t = 0; t < z; t++) {
+      // Tooth 0 sits on +X so a pair meets on the line of centers.
+      const c = t * pitch;
+      for (let s = 0; s <= steps; s++) {
+        const r = rLo + (rHi - rLo) * (s / steps);
+        const a = c - ang(r);
+        push(Math.cos(a) * r, Math.sin(a) * r);
+      }
+      if (!pointed) {
+        const span = 2 * ang(rHi);
+        const tipN = Math.max(2, Math.ceil(span / (pitch / 8)));
+        for (let s = 1; s < tipN; s++) {
+          const a = c - ang(rHi) + span * (s / tipN);
+          push(Math.cos(a) * rHi, Math.sin(a) * rHi);
+        }
+      }
+      for (let s = 0; s <= steps; s++) {
+        const r = rHi + (rLo - rHi) * (s / steps);
+        const a = c + ang(r);
+        push(Math.cos(a) * r, Math.sin(a) * r);
+      }
+      // Drop to the root circle, then arc across the gullet.
+      // The drop is a hair off radial so each point has its own angle.
+      // A true radial step maps to one bore point and opens the solid.
+      const a0 = c + ang(rLo);
+      const a1 = c + pitch - ang(rLo);
+      const gulletSpan = a1 - a0;
+      const eps = Math.min(2e-4, gulletSpan * 0.08);
+      const arc0 = rLo > rf + m * 1e-4 ? a0 + eps : a0;
+      const arc1 = rLo > rf + m * 1e-4 ? a1 - eps : a1;
+      if (rLo > rf + m * 1e-4) push(Math.cos(arc0) * rf, Math.sin(arc0) * rf);
+      const gulletN = Math.max(2, Math.ceil(gulletSpan / (pitch / 8)));
+      for (let s = 1; s < gulletN; s++) {
+        const a = arc0 + (arc1 - arc0) * (s / gulletN);
+        push(Math.cos(a) * rf, Math.sin(a) * rf);
+      }
+      if (rLo > rf + m * 1e-4) push(Math.cos(arc1) * rf, Math.sin(arc1) * rf);
+    }
+
+    if (pts.length < 12) return fail("The outline collapsed. Change a number and try again.");
+    const area = signedArea(pts);
+    if (area < 0) pts.reverse();
+    if (Math.abs(signedArea(pts)) < 1) return fail("The gear has almost no area.");
+
+    const boreShape = spec.boreShape || "round";
+    const boreSides = clamp(Math.round(spec.boreSides || 6), 3, 12);
+    const boreSize = boreShape === "solid" ? 0 : Math.max(0, spec.bore);
+    const reach = holeReach(boreShape, boreSize, boreSides);
+    const minR = pts.reduce((acc, p) => Math.min(acc, Math.hypot(p[0], p[1])), Infinity);
+    if (reach > 0 && reach >= minR - Math.max(0.4, m * 0.2)) {
+      return fail(boreShape === "poly"
+        ? "The corners of the hole cut through the root. Use a smaller shaft or a larger module."
+        : "The bore cuts through the root. Use a smaller shaft or a larger module.");
+    }
+    let coneDistance = 0;
+    let toeScale = 1;
+    let axial = spec.face;
+    if (bevel) {
+      coneDistance = rp / Math.sin(delta);
+      if (spec.face >= coneDistance * 0.8) {
+        return fail("That face reaches the point where the two shafts meet. Shorten it. About " + fmt(coneDistance / 3) + " mm is the usual bevel face.");
+      }
+      toeScale = 1 - spec.face / coneDistance;
+      axial = spec.face * Math.cos(delta);
+      const toeRoot = rf * toeScale;
+      if (reach > 0 && reach >= toeRoot - Math.max(0.4, m * 0.2)) {
+        return fail("The bore cuts through the small end of the bevel. Use a smaller shaft or a shorter face.");
+      }
+      if (reach > 0 && toeRoot - reach < Math.max(0.8, m * 0.45)) {
+        warnings.push("The wall at the small end is thin for printing.");
+      }
+    }
+    if (reach > 0 && minR - reach < Math.max(0.8, m * 0.45)) {
+      warnings.push("The wall between the hole and the root is thin for printing.");
+    }
+
+    const herring = form === "herringbone" && helix >= 0.05;
+    return {
+      ok: true,
+      warnings,
+      poly: pts,
+      teeth: z,
+      module: m,
+      shift,
+      bore: boreSize,
+      boreShape,
+      boreSides: boreShape === "poly" ? boreSides : 0,
+      face: spec.face,
+      angle: spec.angle,
+      form: herring ? "herringbone" : bevel ? "bevel" : helix >= 0.05 ? "helical" : "spur",
+      helix,
+      hand: helix < 0.05 ? "spur" : (handSign > 0 ? "right" : "left"),
+      twist: helix < 0.05 ? 0 : handSign * spec.face * Math.tan(beta) / rp,
+      mt,
+      overlap: helix < 0.05 ? 0 : (herring ? spec.face / 2 : spec.face) * Math.sin(beta) / (Math.PI * m),
+      cone: bevel ? delta * 180 / Math.PI : 0,
+      coneDistance,
+      toeScale,
+      axial,
+      rp, ra, rf, rb,
+      pd: rp * 2,
+      od: rHi * 2,
+      rd: rf * 2,
+      thickness,
+      pointed
+    };
+
+    function fail(message) {
+      return { ok: false, warnings: [message], poly: null };
+    }
+  }
+
+  function signedArea(pts) {
+    let a = 0;
+    for (let i = 0; i < pts.length; i++) {
+      const p = pts[i];
+      const n = pts[(i + 1) % pts.length];
+      a += p[0] * n[1] - n[0] * p[1];
+    }
+    return a / 2;
+  }
+
+  function operatingCenter(mn, z1, z2, x1, x2, angleDeg, helixDeg) {
+    const beta = (helixDeg || 0) * Math.PI / 180;
+    const alphaN = angleDeg * Math.PI / 180;
+    const cosB = Math.cos(beta);
+    const alphaT = Math.atan(Math.tan(alphaN) / cosB);
+    const mt = mn / cosB;
+    const invAw = inv(alphaT) + 2 * (x1 + x2) * Math.tan(alphaN) / (z1 + z2);
+    let aw = Math.max(alphaT, 0.05);
+    if (invAw > 1e-8) {
+      aw = Math.max(alphaT * 0.5, 0.05);
+      for (let i = 0; i < 16; i++) {
+        const f = inv(aw) - invAw;
+        const df = Math.tan(aw) ** 2;
+        if (Math.abs(df) < 1e-12) break;
+        aw = clamp(aw - f / df, 0.02, 1.2);
+      }
+    }
+    const standard = mt * (z1 + z2) / 2;
+    return standard * Math.cos(alphaT) / Math.cos(aw);
+  }
+
+  function place(poly, rot, ox, oy) {
+    const c = Math.cos(rot);
+    const s = Math.sin(rot);
+    return poly.map((p) => [ox + p[0] * c - p[1] * s, oy + p[0] * s + p[1] * c]);
+  }
+
+  function solveInv(target, seed) {
+    let aw = seed;
+    if (target > 1e-8) {
+      for (let i = 0; i < 16; i++) {
+        const df = Math.tan(aw) ** 2;
+        if (Math.abs(df) < 1e-12) break;
+        aw = clamp(aw - (inv(aw) - target) / df, 0.02, 1.2);
+      }
+    }
+    return aw;
+  }
+
+  function rackCenter(m, z, xRack, xPin, angleDeg) {
+    const alpha = angleDeg * Math.PI / 180;
+    const rp = m * z / 2;
+    const aw = solveInv(inv(alpha) + 2 * (xRack + xPin) * Math.tan(alpha) / z, alpha);
+    return rp * Math.cos(alpha) / Math.cos(aw);
+  }
+
+  function internalCenter(m, zRing, zPin, xRing, xPin, angleDeg) {
+    const alpha = angleDeg * Math.PI / 180;
+    const a0 = m * (zRing - zPin) / 2;
+    const aw = solveInv(inv(alpha) + 2 * (xRing - xPin) * Math.tan(alpha) / (zRing - zPin), alpha);
+    return a0 * Math.cos(alpha) / Math.cos(aw);
+  }
+
+  // Straight rack. Pitch line is y = 0, teeth point up, the bar hangs below.
+  function makeRack(spec) {
+    const warnings = [];
+    const z = Math.round(spec.teeth);
+    const m = spec.module;
+    const alpha = spec.angle * Math.PI / 180;
+    const shift = spec.shift || 0;
+    if (z < 3 || z > 80) return fail("A rack wants between 3 and 80 teeth.");
+    if (m <= 0) return fail("Module has to be greater than zero.");
+    if (alpha < 0.15 || alpha > 0.7) return fail("Pressure angle looks wrong. Use something near 14.5, 20, or 25.");
+    if (spec.face <= 0) return fail("Face width has to be greater than zero.");
+    const pitch = Math.PI * m;
+    const add = m * (1 + shift);
+    const ded = m * (1.25 - shift);
+    if (add <= m * 0.15 || ded <= m * 0.2) return fail("That shift swallows the rack tooth. Ease the profile shift back.");
+    const thickness = (Math.PI / 2 + 2 * shift * Math.tan(alpha)) * m - spec.backlash;
+    if (thickness <= m * 0.04) return fail("Backlash is wider than the tooth. Reduce it.");
+    const tanA = Math.tan(alpha);
+    const tipHalf = thickness / 2 - add * tanA;
+    const rootHalf = thickness / 2 + ded * tanA;
+    if (tipHalf <= m * 0.03) return fail("The rack tooth comes to a point. Lower the shift or the pressure angle.");
+    if (rootHalf >= pitch / 2 - m * 0.04) return fail("The rack teeth run into each other. Lower the shift or the pressure angle.");
+    const shank = 2.5 * m;
+    const yTip = add;
+    const yRoot = -ded;
+    const yBot = yRoot - shank;
+    const length = z * pitch;
+    const pts = [[0, yBot], [0, yRoot]];
+    for (let i = 0; i < z; i++) {
+      const cx = (i + 0.5) * pitch;
+      pts.push([cx - rootHalf, yRoot]);
+      pts.push([cx - tipHalf, yTip]);
+      pts.push([cx + tipHalf, yTip]);
+      pts.push([cx + rootHalf, yRoot]);
+    }
+    pts.push([length, yRoot]);
+    pts.push([length, yBot]);
+    return {
+      ok: true,
+      warnings,
+      poly: pts,
+      anchor: [length / 2, yBot + shank * 0.45],
+      teeth: z,
+      module: m,
+      mt: m,
+      shift,
+      backlash: spec.backlash,
+      bore: 0,
+      boreShape: "solid",
+      boreSides: 0,
+      face: spec.face,
+      angle: spec.angle,
+      form: "rack",
+      helix: 0,
+      hand: "spur",
+      twist: 0,
+      overlap: 0,
+      cone: 0,
+      coneDistance: 0,
+      toeScale: 1,
+      axial: spec.face,
+      rp: 0,
+      ra: add,
+      rf: ded,
+      rb: 0,
+      pd: length,
+      od: length,
+      rd: add + ded + shank,
+      length,
+      pitch,
+      thickness,
+      addendum: add,
+      dedendum: ded,
+      bar: add + ded + shank,
+      pointed: false
+    };
+    function fail(message) {
+      return { ok: false, warnings: [message], poly: null };
+    }
+  }
+
+  // Internal ring. Tips point inward. The rim is three modules outside the root.
+  function makeInternal(spec) {
+    const warnings = [];
+    const z = Math.round(spec.teeth);
+    const m = spec.module;
+    const alpha = spec.angle * Math.PI / 180;
+    const shift = spec.shift || 0;
+    const steps = spec.steps || 14;
+    if (z < 20 || z > 240) return fail("An internal ring wants between 20 and 240 teeth.");
+    if (m <= 0) return fail("Module has to be greater than zero.");
+    if (alpha < 0.15 || alpha > 0.7) return fail("Pressure angle looks wrong. Use something near 14.5, 20, or 25.");
+    if (spec.face <= 0) return fail("Face width has to be greater than zero.");
+    const rp = m * z / 2;
+    const rb = rp * Math.cos(alpha);
+    const ra = rp - m * (1 - shift);
+    let rf = rp + m * (1.25 - shift);
+    const need = 2 * (1 - shift) / (1 - Math.cos(alpha));
+    if (!(ra > rb * 1.008)) {
+      return fail("The tooth tip falls inside the base circle. At this angle an internal ring wants about " + Math.ceil(need) + " teeth or more.");
+    }
+    if (!(rf > ra + m * 0.2)) return fail("That shift swallows the internal tooth. Ease the profile shift back.");
+    const thickness = (Math.PI / 2 + 2 * shift * Math.tan(alpha)) * m - spec.backlash;
+    if (thickness <= m * 0.04) return fail("Backlash is wider than the tooth. Reduce it.");
+    const halfThick = thickness / (2 * rp);
+    function ang(r) {
+      const phi = Math.acos(clamp(rb / r, -1, 1));
+      return halfThick + inv(phi) - inv(alpha);
+    }
+    const valley = Math.PI / z - 1e-4;
+    if (ang(rf) > valley) {
+      let lo = ra;
+      let hi = rf;
+      for (let i = 0; i < 32; i++) {
+        const mid = (lo + hi) / 2;
+        if (ang(mid) > valley) hi = mid;
+        else lo = mid;
+      }
+      rf = hi;
+      warnings.push("The root was trimmed so neighboring teeth do not cross.");
+    }
+    if (ang(ra) < 8e-4) return fail("The internal tooth comes to a point. Lower the profile shift.");
+    const pitch = (Math.PI * 2) / z;
+    const pts = [];
+    function push(x, y) {
+      const px = q(x);
+      const py = q(y);
+      const prev = pts[pts.length - 1];
+      if (prev && Math.hypot(prev[0] - px, prev[1] - py) < 0.002) return;
+      pts.push([px, py]);
+    }
+    for (let t = 0; t < z; t++) {
+      const c = t * pitch;
+      for (let s = 0; s <= steps; s++) {
+        const r = rf + (ra - rf) * (s / steps);
+        const a = c - ang(r);
+        push(Math.cos(a) * r, Math.sin(a) * r);
+      }
+      const span = 2 * ang(ra);
+      const tipN = Math.max(2, Math.ceil(span / (pitch / 10)));
+      for (let s = 1; s < tipN; s++) {
+        const a = c - ang(ra) + span * (s / tipN);
+        push(Math.cos(a) * ra, Math.sin(a) * ra);
+      }
+      for (let s = 1; s <= steps; s++) {
+        const r = ra + (rf - ra) * (s / steps);
+        const a = c + ang(r);
+        push(Math.cos(a) * r, Math.sin(a) * r);
+      }
+      const a0 = c + ang(rf);
+      const a1 = c + pitch - ang(rf);
+      const gulletN = Math.max(2, Math.ceil((a1 - a0) / (pitch / 10)));
+      for (let s = 1; s < gulletN; s++) {
+        const a = a0 + (a1 - a0) * (s / gulletN);
+        push(Math.cos(a) * rf, Math.sin(a) * rf);
+      }
+    }
+    if (pts.length < z * 4) return fail("The ring outline collapsed. Change a number and try again.");
+    for (let i = 0; i < pts.length; i++) {
+      const n = pts[(i + 1) % pts.length];
+      let d = Math.atan2(n[1], n[0]) - Math.atan2(pts[i][1], pts[i][0]);
+      if (d > Math.PI) d -= Math.PI * 2;
+      if (d < -Math.PI) d += Math.PI * 2;
+      if (d <= 1e-6) return fail("The internal teeth fold over each other. Add teeth or lower the shift.");
+    }
+    const rim = rf + 3 * m;
+    return {
+      ok: true,
+      warnings,
+      poly: pts,
+      teeth: z,
+      module: m,
+      mt: m,
+      shift,
+      bore: 0,
+      boreShape: "solid",
+      boreSides: 0,
+      face: spec.face,
+      angle: spec.angle,
+      form: "internal",
+      helix: 0,
+      hand: "spur",
+      twist: 0,
+      overlap: 0,
+      cone: 0,
+      coneDistance: 0,
+      toeScale: 1,
+      axial: spec.face,
+      rim,
+      rp, ra, rf, rb,
+      pd: rp * 2,
+      od: rim * 2,
+      rd: rf * 2,
+      id: ra * 2,
+      thickness,
+      pointed: false
+    };
+    function fail(message) {
+      return { ok: false, warnings: [message], poly: null };
+    }
+  }
+
+  // Cylindrical worm. The transverse section is spun along the screw.
+  function makeWorm(spec) {
+    const warnings = [];
+    const starts = Math.round(spec.teeth);
+    const m = spec.module;
+    const alpha = spec.angle * Math.PI / 180;
+    const qFactor = clamp(Number(spec.quotient) || 10, 6, 20);
+    const handSign = spec.hand === "left" ? -1 : 1;
+    if (starts < 1 || starts > 6) return fail("A worm wants 1 to 6 starts. 1 is the usual big reduction. 2 or 4 is easier to turn backward.");
+    if (m <= 0) return fail("Module has to be greater than zero.");
+    if (alpha < 0.15 || alpha > 0.7) return fail("Pressure angle looks wrong. Use something near 14.5, 20, or 25.");
+    if (spec.face <= 0) return fail("Face width has to be greater than zero.");
+    const rp = qFactor * m / 2;
+    const ra = rp + m;
+    const rf = rp - 1.25 * m;
+    if (rf <= m * 0.4) return fail("That diameter quotient is too small for the tooth depth. Use 8 or more.");
+    const pitch = Math.PI * m;
+    const thickness = pitch / 2 - spec.backlash;
+    if (thickness <= m * 0.08) return fail("Backlash is wider than the thread. Reduce it.");
+    const tanA = Math.tan(alpha);
+    const tipHalf = thickness / 2 - m * tanA;
+    if (tipHalf <= m * 0.03) return fail("The worm thread comes to a point. Lower the pressure angle.");
+    const around = clamp((spec.steps || 14) * 5, 48, 96);
+    const pts = [];
+    for (let i = 0; i < around; i++) {
+      const theta = (i / around) * Math.PI * 2;
+      let axial = (theta * starts * m / 2) % pitch;
+      if (axial > pitch / 2) axial -= pitch;
+      if (axial < -pitch / 2) axial += pitch;
+      const a = Math.abs(axial);
+      let r;
+      if (a <= tipHalf) r = ra;
+      else {
+        r = rp - (a - thickness / 2) / tanA;
+        if (r < rf) r = rf;
+      }
+      pts.push([q(Math.cos(theta) * r), q(Math.sin(theta) * r)]);
+    }
+    const boreShape = spec.boreShape || "round";
+    const boreSides = clamp(Math.round(spec.boreSides || 6), 3, 12);
+    const boreSize = boreShape === "solid" ? 0 : Math.max(0, spec.bore);
+    const reach = holeReach(boreShape, boreSize, boreSides);
+    if (reach > 0 && reach >= rf - Math.max(0.4, m * 0.25)) {
+      return fail("The bore cuts into the worm thread. Use a smaller shaft or a larger diameter quotient.");
+    }
+    const lead = pitch * starts;
+    const leadAngle = Math.atan(starts / qFactor) * 180 / Math.PI;
+    const lockAngle = Math.atan(0.08) * 180 / Math.PI;
+    const efficiency = clamp(Math.tan(leadAngle * Math.PI / 180) / Math.tan((leadAngle + lockAngle) * Math.PI / 180), 0.05, 0.92);
+    if (leadAngle + 0.15 < lockAngle) {
+      warnings.push("This lead is shallow enough that the wheel will not turn the worm backward. Useful for a lift. A problem if the screw has to be backdriven. Fewer modules of diameter, or more starts, steepens it.");
+    } else if (leadAngle < lockAngle + 2) {
+      warnings.push("The wheel can barely turn this worm backward. Grease it, or expect it to stick.");
+    }
+    if (spec.face < pitch * 3) {
+      warnings.push("The screw is shorter than about three pitches. A longer face gives the wheel more thread to sit on.");
+    }
+    const wheelFace = Math.min(spec.face, Math.max(m * 4, Math.min(rp * 1.2, spec.face)));
+    return {
+      ok: true,
+      warnings,
+      poly: pts,
+      teeth: starts,
+      module: m,
+      mt: m,
+      shift: 0,
+      bore: boreSize,
+      boreShape,
+      boreSides: boreShape === "poly" ? boreSides : 0,
+      face: spec.face,
+      angle: spec.angle,
+      form: "worm",
+      helix: leadAngle,
+      hand: handSign > 0 ? "right" : "left",
+      twist: handSign * spec.face * 2 / (m * starts),
+      overlap: 0,
+      cone: 0,
+      coneDistance: 0,
+      toeScale: 1,
+      axial: spec.face,
+      quotient: qFactor,
+      lead,
+      leadAngle,
+      lockAngle,
+      efficiency,
+      wheelFace,
+      rp, ra, rf, rb: rf,
+      pd: rp * 2,
+      od: ra * 2,
+      rd: rf * 2,
+      thickness,
+      pitch,
+      pointed: false
+    };
+    function fail(message) {
+      return { ok: false, warnings: [message], poly: null };
+    }
+  }
+
+  function build(input) {
+    const share = input.pair ? input.backlash / 2 : input.backlash;
+    const handA = input.hand === "left" ? "left" : "right";
+    const form = input.form || (input.helix > 0.05 ? "helical" : "spur");
+    const mateTeeth = input.pair ? input.teethB : input.teeth;
+    const common = {
+      module: input.module,
+      angle: input.angle,
+      backlash: share,
+      face: input.face,
+      steps: input.steps
+    };
+    let gear;
+    if (form === "rack") {
+      gear = makeRack(Object.assign({}, common, { teeth: input.teeth, shift: input.shift }));
+    } else if (form === "internal") {
+      gear = makeInternal(Object.assign({}, common, { teeth: input.teeth, shift: input.shift }));
+    } else if (form === "worm") {
+      gear = makeWorm(Object.assign({}, common, {
+        teeth: input.teeth,
+        quotient: input.quotient,
+        hand: handA,
+        bore: input.boreShape === "solid" ? 0 : input.bore,
+        boreShape: input.boreShape,
+        boreSides: input.boreSides
+      }));
+    } else {
+      gear = makeGear({
+        teeth: input.teeth,
+        module: input.module,
+        angle: input.angle,
+        shift: input.shift,
+        backlash: share,
+        face: input.face,
+        bore: input.boreShape === "solid" ? 0 : input.bore,
+        boreShape: input.boreShape,
+        boreSides: input.boreSides,
+        steps: input.steps,
+        helix: input.helix,
+        hand: handA,
+        form,
+        cone: form === "bevel" ? Math.atan2(input.teeth, mateTeeth) * 180 / Math.PI : 0
+      });
+    }
+    const result = {
+      gear,
+      mate: null,
+      center: null,
+      rot2: 0,
+      clearance: null,
+      warnings: gear.warnings.slice(),
+      face: input.face,
+      pair: input.pair
+    };
+    if (gear.ok && (gear.form === "helical" || gear.form === "herringbone") && gear.helix > 0.05 && gear.overlap < 0.95) {
+      const split = gear.form === "herringbone";
+      const want = (split ? 2 : 1) * Math.PI * gear.module / Math.sin(gear.helix * Math.PI / 180);
+      result.warnings.push(split
+        ? "Each half of the V covers " + fmt(gear.overlap) + " of a tooth. About " + fmt(want) + " mm of face lets each half keep a tooth in mesh. A shorter face still runs."
+        : "The face covers " + fmt(gear.overlap) + " of a tooth along the helix. About " + fmt(want) + " mm keeps one tooth in mesh the whole way, which is the quiet helical mesh. A shorter face still runs. It behaves more like a spur.");
+    }
+    if (gear.ok && gear.form === "bevel" && gear.face > gear.coneDistance / 3 + 0.2) {
+      result.warnings.push("A bevel face longer than about " + fmt(gear.coneDistance / 3) + " mm makes the small end skinny. This one is " + fmt(gear.face) + " mm along the tooth.");
+    }
+    if (gear.ok && gear.form !== "worm" && gear.helix > 30) {
+      result.warnings.push("Past about 30° the helix pushes hard along the shaft. 15° or 20° is the usual range.");
+    }
+    if (input.pair) {
+      if (input.shiftB === null || input.boreB === null) {
+        result.warnings.push("The mating gear is missing a number.");
+      } else if (form === "rack" || form === "internal" || form === "worm") {
+        const mate = makeGear({
+          teeth: input.teethB,
+          module: form === "worm" ? input.module * Math.cos(gear.ok ? gear.leadAngle * Math.PI / 180 : 0) : input.module,
+          angle: input.angle,
+          shift: input.shiftB,
+          backlash: share,
+          face: form === "worm" && gear.ok ? gear.wheelFace : input.face,
+          bore: input.boreShapeB === "solid" ? 0 : input.boreB,
+          boreShape: input.boreShapeB,
+          boreSides: input.boreSidesB,
+          steps: input.steps,
+          helix: form === "worm" && gear.ok ? gear.leadAngle : 0,
+          hand: form === "worm" ? handA : "right",
+          form: form === "worm" ? "helical" : "spur",
+          cone: 0
+        });
+        if (form === "worm" && mate.ok && gear.ok) {
+          mate.form = "wheel";
+          mate.module = input.module;
+          mate.mt = input.module;
+          if (input.shift !== 0 || input.shiftB !== 0) {
+            result.warnings.push("Profile shift on a worm set stays at the pitch center. Leave both shifts at 0 for this mesh.");
+          }
+        }
+        result.mate = mate;
+        result.warnings = result.warnings.concat(mate.warnings.map((w) => "Mate: " + w));
+        if (gear.ok && mate.ok && form === "rack") {
+          result.center = rackCenter(input.module, mate.teeth, gear.shift, mate.shift, input.angle);
+          result.rot2 = -Math.PI / 2;
+          result.pinionX = Math.floor(gear.teeth / 2) * gear.pitch;
+          result.clearance = meshClearance(
+            gear.poly,
+            place(mate.poly, result.rot2, result.pinionX, result.center),
+            result.pinionX,
+            input.module
+          );
+        } else if (gear.ok && mate.ok && form === "internal") {
+          if (gear.teeth <= mate.teeth + 4) {
+            result.warnings.push("The pinion is too large for this ring. The ring wants at least 8 more teeth than the pinion, and more is safer.");
+          } else if (gear.teeth - mate.teeth < 10) {
+            result.warnings.push("The pinion is large for this ring. A gap of 10 teeth or more keeps the tips from fouling.");
+          }
+          result.center = internalCenter(input.module, gear.teeth, mate.teeth, gear.shift, mate.shift, input.angle);
+          result.rot2 = 0;
+          result.ringRot = Math.PI / gear.teeth;
+          const pitchX = result.center * gear.teeth / (gear.teeth - mate.teeth);
+          result.clearance = ringClearance(
+            place(gear.poly, result.ringRot, 0, 0),
+            place(mate.poly, 0, result.center, 0),
+            pitchX,
+            input.module
+          );
+          if (result.center + mate.ra > gear.rf - input.module * 0.05) {
+            result.warnings.push("The pinion tooth hits the bottom of the ring tooth. Fewer pinion teeth, or a larger ring, opens the gap.");
+          }
+        } else if (gear.ok && mate.ok && form === "worm") {
+          result.center = gear.rp + mate.rp;
+          result.rot2 = 0;
+          result.clearance = null;
+        }
+        if (result.clearance !== null && result.clearance < -0.03) {
+          result.warnings.push("The teeth overlap by about " + fmt(Math.abs(result.clearance)) + " mm. Add backlash or separate them with less positive shift.");
+        }
+      } else {
+        const mate = makeGear({
+          teeth: input.teethB,
+          module: input.module,
+          angle: input.angle,
+          shift: input.shiftB,
+          backlash: share,
+          face: input.face,
+          bore: input.boreShapeB === "solid" ? 0 : input.boreB,
+          boreShape: input.boreShapeB,
+          boreSides: input.boreSidesB,
+          steps: input.steps,
+          helix: input.helix,
+          hand: handA === "left" ? "right" : "left",
+          form,
+          cone: form === "bevel" ? Math.atan2(input.teethB, input.teeth) * 180 / Math.PI : 0
+        });
+        result.mate = mate;
+        result.warnings = result.warnings.concat(mate.warnings.map((w) => "Mate: " + w));
+        if (gear.ok && mate.ok && form !== "bevel") {
+          result.center = operatingCenter(input.module, gear.teeth, mate.teeth, gear.shift, mate.shift, input.angle, input.helix);
+          result.rot2 = Math.PI - Math.PI / mate.teeth;
+          result.clearance = meshClearance(
+            gear.poly,
+            place(mate.poly, result.rot2, result.center, 0),
+            result.center * gear.teeth / (gear.teeth + mate.teeth),
+            input.module
+          );
+          if (result.clearance < -0.03) {
+            result.warnings.push("The teeth overlap by about " + fmt(Math.abs(result.clearance)) + " mm. Add backlash or separate them with less positive shift.");
+          }
+        }
+      }
+    }
+    return result;
+  }
+
+  function ringClearance(ring, pinion, pitchX, module) {
+    const origin = [pitchX, 0];
+    const reach = module * 4;
+    let best = Infinity;
+    for (let i = 0; i < pinion.length; i++) {
+      const p = pinion[i];
+      if (Math.hypot(p[0] - origin[0], p[1] - origin[1]) > reach) continue;
+      const hole = pointInPoly(p, ring);
+      const d = distToPoly(p, ring);
+      const signed = hole ? d : -d;
+      if (signed < best) best = signed;
+    }
+    for (let i = 0; i < ring.length; i++) {
+      const p = ring[i];
+      if (Math.hypot(p[0] - origin[0], p[1] - origin[1]) > reach) continue;
+      const metal = pointInPoly(p, pinion);
+      const d = distToPoly(p, pinion);
+      const signed = metal ? -d : d;
+      if (signed < best) best = signed;
+    }
+    return best;
+  }
+
+  function meshClearance(a, b, pitchX, module) {
+    const origin = [pitchX, 0];
+    const reach = module * 5;
+    function consider(poly, other, best) {
+      for (let i = 0; i < poly.length; i++) {
+        const p = poly[i];
+        if (Math.hypot(p[0] - origin[0], p[1] - origin[1]) > reach) continue;
+        const inside = pointInPoly(p, other);
+        const d = distToPoly(p, other);
+        const signed = inside ? -d : d;
+        if (signed < best) best = signed;
+      }
+      return best;
+    }
+    let best = consider(a, b, Infinity);
+    best = consider(b, a, best);
+    return best;
+  }
+
+  function pointInPoly(pt, poly) {
+    let inside = false;
+    for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+      const yi = poly[i][1];
+      const yj = poly[j][1];
+      if ((yi > pt[1]) !== (yj > pt[1])) {
+        const x = (poly[j][0] - poly[i][0]) * (pt[1] - yi) / (yj - yi) + poly[i][0];
+        if (pt[0] < x) inside = !inside;
+      }
+    }
+    return inside;
+  }
+
+  function distToPoly(pt, poly) {
+    let min = Infinity;
+    for (let i = 0; i < poly.length; i++) {
+      const a = poly[i];
+      const b = poly[(i + 1) % poly.length];
+      const dx = b[0] - a[0];
+      const dy = b[1] - a[1];
+      const l2 = dx * dx + dy * dy || 1;
+      const t = clamp(((pt[0] - a[0]) * dx + (pt[1] - a[1]) * dy) / l2, 0, 1);
+      const d = Math.hypot(pt[0] - (a[0] + t * dx), pt[1] - (a[1] + t * dy));
+      if (d < min) min = d;
+    }
+    return min;
+  }
+
+  function wrapHalf(angle, period) {
+    let x = (angle + period / 2) % period;
+    if (x < 0) x += period;
+    return x - period / 2;
+  }
+
+  function polyRadius(theta, inR, sides) {
+    const sector = (Math.PI * 2) / sides;
+    const flat0 = Math.PI / 2 + sector / 2;
+    return inR / Math.cos(wrapHalf(theta - flat0, sector));
+  }
+
+  function rayOnSegment(theta, a, b) {
+    const dx = Math.cos(theta);
+    const dy = Math.sin(theta);
+    const sx = b[0] - a[0];
+    const sy = b[1] - a[1];
+    const den = dx * sy - dy * sx;
+    if (Math.abs(den) < 1e-12) return null;
+    const t = (a[0] * sy - a[1] * sx) / den;
+    const u = (a[0] * dy - a[1] * dx) / den;
+    if (t <= 1e-8 || u < -1e-3 || u > 1 + 1e-3) return null;
+    return [dx * t, dy * t];
+  }
+
+  function polygonRings(outer, hole) {
+    const n = outer.length;
+    const ang = new Array(n);
+    ang[0] = Math.atan2(outer[0][1], outer[0][0]);
+    for (let i = 1; i < n; i++) {
+      let a = Math.atan2(outer[i][1], outer[i][0]);
+      while (a < ang[i - 1] - 1e-6) a += Math.PI * 2;
+      ang[i] = a;
+    }
+    const start = ang[0];
+    const end = start + Math.PI * 2;
+    const sector = (Math.PI * 2) / hole.sides;
+    const verts = [];
+    for (let k = 0; k < hole.sides; k++) {
+      let a = Math.PI / 2 + k * sector;
+      while (a < start) a += Math.PI * 2;
+      while (a >= end) a -= Math.PI * 2;
+      if (a > start + 1e-4 && a < end - 1e-4) verts.push(a);
+    }
+    verts.sort((a, b) => a - b);
+    const rings = [];
+    let v = 0;
+    function add(theta, point) {
+      const r = polyRadius(theta, hole.inR, hole.sides);
+      rings.push({
+        outer: point,
+        inner: [Math.cos(theta) * r, Math.sin(theta) * r]
+      });
+    }
+    for (let i = 0; i < n; i++) {
+      const j = (i + 1) % n;
+      const a0 = ang[i];
+      const a1 = j === 0 ? end : ang[j];
+      add(a0, outer[i]);
+      while (v < verts.length && verts[v] < a1 - 1e-4) {
+        if (verts[v] > a0 + 1e-4) {
+          const hit = rayOnSegment(verts[v], outer[i], outer[j]);
+          if (hit) add(verts[v], hit);
+        }
+        v++;
+      }
+    }
+    return rings;
+  }
+
+  function monoAngles(pts) {
+    const ang = new Array(pts.length);
+    ang[0] = Math.atan2(pts[0][1], pts[0][0]);
+    for (let i = 1; i < pts.length; i++) {
+      let a = Math.atan2(pts[i][1], pts[i][0]);
+      while (a < ang[i - 1] - 1e-9) a += Math.PI * 2;
+      ang[i] = a;
+    }
+    return ang;
+  }
+
+  function holePoint(gear, theta) {
+    const size = Number(gear.bore) || 0;
+    if ((gear.boreShape || "round") === "poly") {
+      const sides = clamp(Math.round(gear.boreSides || 6), 3, 12);
+      const r = polyRadius(theta, size / 2, sides);
+      return [Math.cos(theta) * r, Math.sin(theta) * r];
+    }
+    const r = size / 2;
+    return [Math.cos(theta) * r, Math.sin(theta) * r];
+  }
+
+  // One straight hole outline, with a point on every ray the top and bottom
+  // teeth use, so each cap can meet the wall without crossing the bore.
+  function masterHole(gear, polylines) {
+    const shape = gear.boreShape || "round";
+    const size = Number(gear.bore) || 0;
+    if (shape === "solid" || size <= 0.04) return null;
+    const start = Math.atan2(polylines[0][0][1], polylines[0][0][0]);
+    const angs = [];
+    function add(a) {
+      let x = a;
+      while (x < start - 1e-8) x += Math.PI * 2;
+      while (x >= start + Math.PI * 2 - 1e-8) x -= Math.PI * 2;
+      angs.push(x);
+    }
+    for (const poly of polylines) {
+      for (const p of poly) add(Math.atan2(p[1], p[0]));
+    }
+    if (shape === "poly") {
+      const sides = clamp(Math.round(gear.boreSides || 6), 3, 12);
+      for (let k = 0; k < sides; k++) add(Math.PI / 2 + k * 2 * Math.PI / sides);
+    }
+    angs.sort((a, b) => a - b);
+    const uniq = [];
+    for (const a of angs) {
+      if (!uniq.length || a - uniq[uniq.length - 1] > 1e-6) uniq.push(a);
+    }
+    return uniq.map((a) => ({ a, p: holePoint(gear, a) }));
+  }
+
+  function spinPoly(poly, ang) {
+    if (Math.abs(ang) < 1e-12) return poly;
+    const c = Math.cos(ang);
+    const s = Math.sin(ang);
+    return poly.map((p) => [p[0] * c - p[1] * s, p[0] * s + p[1] * c]);
+  }
+
+  function scalePoly(poly, scale) {
+    if (Math.abs(scale - 1) < 1e-8) return poly;
+    return poly.map((p) => [p[0] * scale, p[1] * scale]);
+  }
+
+  function sectionCount(arc, module) {
+    const target = Math.max(0.15, module * 0.12);
+    return clamp(Math.ceil(arc / target), 2, 40);
+  }
+
+  // Sections run from the bed upward. The hole stays a straight prism.
+  function extrudeSections(gear, sections) {
+    const tris = [];
+    const P = (x, y, z) => [q(x), q(y), q(z)];
+    function normal(a, b, c) {
+      const abx = b[0] - a[0], aby = b[1] - a[1], abz = b[2] - a[2];
+      const acx = c[0] - a[0], acy = c[1] - a[1], acz = c[2] - a[2];
+      return [aby * acz - abz * acy, abz * acx - abx * acz, abx * acy - aby * acx];
+    }
+    function add(a, b, c, dir) {
+      const nrm = normal(a, b, c);
+      const mag = Math.hypot(nrm[0], nrm[1], nrm[2]);
+      if (mag < 1e-10) return;
+      const dot = nrm[0] * dir[0] + nrm[1] * dir[1] + nrm[2] * dir[2];
+      tris.push(dot >= 0 ? [a, b, c] : [a, c, b]);
+    }
+    function cap(poly, z, dir) {
+      if (!hole) {
+        for (let i = 0; i < poly.length; i++) {
+          const j = (i + 1) % poly.length;
+          add(P(0, 0, z), P(poly[i][0], poly[i][1], z), P(poly[j][0], poly[j][1], z), dir);
+        }
+        return;
+      }
+      const oa = monoAngles(poly);
+      const start = oa[0];
+      const ring = hole.map((h) => {
+        let a = h.a;
+        while (a < start - 1e-6) a += Math.PI * 2;
+        while (a >= start + Math.PI * 2 - 1e-6) a -= Math.PI * 2;
+        return { a, p: h.p };
+      }).sort((u, v) => u.a - v.a);
+      const n = poly.length;
+      let h = 0;
+      for (let i = 0; i < n; i++) {
+        const i2 = (i + 1) % n;
+        const a0 = oa[i];
+        const a1 = i + 1 < n ? oa[i + 1] : oa[0] + Math.PI * 2;
+        while (h < ring.length && ring[h].a < a0 - 1e-5) h++;
+        const chain = [];
+        let k = h;
+        while (k < ring.length && ring[k].a <= a1 + 1e-5) {
+          chain.push(ring[k].p);
+          k++;
+        }
+        if (i2 === 0 && chain[chain.length - 1] !== ring[0].p) chain.push(ring[0].p);
+        if (chain.length < 2) continue;
+        const last = chain.length - 1;
+        const pi = P(poly[i][0], poly[i][1], z);
+        const pj = P(poly[i2][0], poly[i2][1], z);
+        add(pi, pj, P(chain[last][0], chain[last][1], z), dir);
+        for (let c = last; c > 0; c--) {
+          add(pi, P(chain[c][0], chain[c][1], z), P(chain[c - 1][0], chain[c - 1][1], z), dir);
+        }
+      }
+    }
+    const first = sections[0];
+    const last = sections[sections.length - 1];
+    const hole = masterHole(gear, [first.poly, last.poly]);
+    cap(first.poly, first.z, [0, 0, -1]);
+    cap(last.poly, last.z, [0, 0, 1]);
+    for (let k = 0; k < sections.length - 1; k++) {
+      const lower = sections[k].poly;
+      const upper = sections[k + 1].poly;
+      const zl = sections[k].z;
+      const zu = sections[k + 1].z;
+      for (let i = 0; i < lower.length; i++) {
+        const j = (i + 1) % lower.length;
+        const b0 = P(lower[i][0], lower[i][1], zl);
+        const b1 = P(lower[j][0], lower[j][1], zl);
+        const o0 = P(upper[i][0], upper[i][1], zu);
+        const o1 = P(upper[j][0], upper[j][1], zu);
+        const mx = (lower[i][0] + lower[j][0] + upper[i][0] + upper[j][0]) / 4;
+        const my = (lower[i][1] + lower[j][1] + upper[i][1] + upper[j][1]) / 4;
+        add(b0, o0, o1, [mx, my, 0]);
+        add(b0, o1, b1, [mx, my, 0]);
+      }
+    }
+    if (hole) {
+      const n = hole.length;
+      for (let i = 0; i < n; i++) {
+        const j = (i + 1) % n;
+        const A = hole[i].p;
+        const B = hole[j].p;
+        const k0 = P(A[0], A[1], first.z);
+        const k1 = P(B[0], B[1], first.z);
+        const i0 = P(A[0], A[1], last.z);
+        const i1 = P(B[0], B[1], last.z);
+        const ix = (A[0] + B[0]) / 2;
+        const iy = (A[1] + B[1]) / 2;
+        add(k0, k1, i1, [-ix, -iy, 0]);
+        add(k0, i1, i0, [-ix, -iy, 0]);
+      }
+    }
+    return tris;
+  }
+
+  function extrudeHelical(gear) {
+    const twist = gear.twist;
+    const slices = sectionCount(Math.abs(twist) * gear.ra, gear.module);
+    const sections = [];
+    for (let k = 0; k <= slices; k++) {
+      const rot = k === 0 ? 0 : k === slices ? twist : twist * k / slices;
+      sections.push({ poly: spinPoly(gear.poly, rot), z: gear.face * k / slices });
+    }
+    return extrudeSections(gear, sections);
+  }
+
+  function extrudeHerringbone(gear) {
+    const crest = gear.twist / 2;
+    const half = sectionCount(Math.abs(crest) * gear.ra, gear.module);
+    const sections = [];
+    for (let k = 0; k <= half; k++) {
+      sections.push({ poly: spinPoly(gear.poly, crest * k / half), z: gear.face * 0.5 * k / half });
+    }
+    for (let k = 1; k <= half; k++) {
+      sections.push({ poly: spinPoly(gear.poly, crest * (1 - k / half)), z: gear.face * 0.5 * (1 + k / half) });
+    }
+    return extrudeSections(gear, sections);
+  }
+
+  function extrudeBevel(gear) {
+    const slices = sectionCount((1 - gear.toeScale) * gear.ra, gear.module);
+    const sections = [];
+    for (let k = 0; k <= slices; k++) {
+      const t = k / slices;
+      sections.push({
+        poly: scalePoly(gear.poly, 1 + (gear.toeScale - 1) * t),
+        z: gear.axial * t
+      });
+    }
+    return extrudeSections(gear, sections);
+  }
+
+  function earClip(poly) {
+    const pts = poly.map((p) => [p[0], p[1]]);
+    let area = 0;
+    for (let i = 0; i < pts.length; i++) {
+      const n = pts[(i + 1) % pts.length];
+      area += pts[i][0] * n[1] - n[0] * pts[i][1];
+    }
+    if (area < 0) pts.reverse();
+    const idx = pts.map((_, i) => i);
+    const out = [];
+    const cross = (a, b, c) => (b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0]);
+    const contains = (a, b, c, p) => cross(a, b, p) >= -1e-8 && cross(b, c, p) >= -1e-8 && cross(c, a, p) >= -1e-8;
+    let guard = 0;
+    while (idx.length > 3 && guard < 8000) {
+      guard++;
+      let clipped = false;
+      for (let i = 0; i < idx.length; i++) {
+        const i0 = idx[(i + idx.length - 1) % idx.length];
+        const i1 = idx[i];
+        const i2 = idx[(i + 1) % idx.length];
+        const a = pts[i0];
+        const b = pts[i1];
+        const c = pts[i2];
+        if (cross(a, b, c) <= 1e-8) continue;
+        let hit = false;
+        for (let k = 0; k < idx.length; k++) {
+          const j = idx[k];
+          if (j === i0 || j === i1 || j === i2) continue;
+          if (contains(a, b, c, pts[j])) { hit = true; break; }
+        }
+        if (hit) continue;
+        out.push([a, b, c]);
+        idx.splice(i, 1);
+        clipped = true;
+        break;
+      }
+      if (!clipped) return null;
+    }
+    if (idx.length === 3) out.push([pts[idx[0]], pts[idx[1]], pts[idx[2]]]);
+    return out;
+  }
+
+  function extrudePrism(polyIn, face) {
+    const tris = [];
+    let poly = polyIn.map((p) => [p[0], p[1]]);
+    let area = 0;
+    for (let i = 0; i < poly.length; i++) {
+      const n = poly[(i + 1) % poly.length];
+      area += poly[i][0] * n[1] - n[0] * poly[i][1];
+    }
+    if (area < 0) poly.reverse();
+    const caps = earClip(poly);
+    if (!caps) return tris;
+    const z0 = 0;
+    const z1 = q(face);
+    const P = (x, y, z) => [q(x), q(y), q(z)];
+    function normal(a, b, c) {
+      const abx = b[0] - a[0], aby = b[1] - a[1], abz = b[2] - a[2];
+      const acx = c[0] - a[0], acy = c[1] - a[1], acz = c[2] - a[2];
+      return [aby * acz - abz * acy, abz * acx - abx * acz, abx * acy - aby * acx];
+    }
+    function add(a, b, c, dir) {
+      const nrm = normal(a, b, c);
+      const mag = Math.hypot(nrm[0], nrm[1], nrm[2]);
+      if (mag < 1e-10) return;
+      const dot = nrm[0] * dir[0] + nrm[1] * dir[1] + nrm[2] * dir[2];
+      tris.push(dot >= 0 ? [a, b, c] : [a, c, b]);
+    }
+    for (const [a, b, c] of caps) {
+      add(P(a[0], a[1], z1), P(b[0], b[1], z1), P(c[0], c[1], z1), [0, 0, 1]);
+      add(P(a[0], a[1], z0), P(b[0], b[1], z0), P(c[0], c[1], z0), [0, 0, -1]);
+    }
+    const n = poly.length;
+    for (let i = 0; i < n; i++) {
+      const j = (i + 1) % n;
+      const pi = poly[i];
+      const pj = poly[j];
+      const ox = pj[1] - pi[1];
+      const oy = pi[0] - pj[0];
+      const b0 = P(pi[0], pi[1], z0);
+      const b1 = P(pj[0], pj[1], z0);
+      const t0 = P(pi[0], pi[1], z1);
+      const t1 = P(pj[0], pj[1], z1);
+      add(b0, t0, t1, [ox, oy, 0]);
+      add(b0, t1, b1, [ox, oy, 0]);
+    }
+    return tris;
+  }
+
+  function starRadius(poly, theta) {
+    let best = null;
+    for (let i = 0; i < poly.length; i++) {
+      const hit = rayOnSegment(theta, poly[i], poly[(i + 1) % poly.length]);
+      if (!hit) continue;
+      const r = Math.hypot(hit[0], hit[1]);
+      if (best === null || r < best) best = r;
+    }
+    return best;
+  }
+
+  function extrudeRing(gear) {
+    const inner = gear.poly;
+    const start = Math.atan2(inner[0][1], inner[0][0]);
+    const angles = [];
+    for (let i = 0; i < inner.length; i++) {
+      let a = Math.atan2(inner[i][1], inner[i][0]);
+      while (a < start - 1e-8) a += Math.PI * 2;
+      while (a >= start + Math.PI * 2 - 1e-8) a -= Math.PI * 2;
+      if (!angles.length || a - angles[angles.length - 1] > 1e-5) angles.push(a);
+    }
+    const outer = [];
+    const hole = [];
+    for (let i = 0; i < angles.length; i++) {
+      const a = angles[i];
+      const r = starRadius(inner, a);
+      if (!(r > 0)) continue;
+      outer.push([Math.cos(a) * gear.rim, Math.sin(a) * gear.rim]);
+      hole.push([Math.cos(a) * r, Math.sin(a) * r]);
+    }
+    const tris = [];
+    const z0 = 0;
+    const z1 = q(gear.face);
+    const P = (x, y, z) => [q(x), q(y), q(z)];
+    function normal(a, b, c) {
+      const abx = b[0] - a[0], aby = b[1] - a[1], abz = b[2] - a[2];
+      const acx = c[0] - a[0], acy = c[1] - a[1], acz = c[2] - a[2];
+      return [aby * acz - abz * acy, abz * acx - abx * acz, abx * acy - aby * acx];
+    }
+    function add(a, b, c, dir) {
+      const nrm = normal(a, b, c);
+      const mag = Math.hypot(nrm[0], nrm[1], nrm[2]);
+      if (mag < 1e-10) return;
+      const dot = nrm[0] * dir[0] + nrm[1] * dir[1] + nrm[2] * dir[2];
+      tris.push(dot >= 0 ? [a, b, c] : [a, c, b]);
+    }
+    const n = outer.length;
+    for (let i = 0; i < n; i++) {
+      const j = (i + 1) % n;
+      const oi = outer[i];
+      const oj = outer[j];
+      const ii = hole[i];
+      const ij = hole[j];
+      add(P(oi[0], oi[1], z1), P(oj[0], oj[1], z1), P(ij[0], ij[1], z1), [0, 0, 1]);
+      add(P(oi[0], oi[1], z1), P(ij[0], ij[1], z1), P(ii[0], ii[1], z1), [0, 0, 1]);
+      add(P(oi[0], oi[1], z0), P(oj[0], oj[1], z0), P(ij[0], ij[1], z0), [0, 0, -1]);
+      add(P(oi[0], oi[1], z0), P(ij[0], ij[1], z0), P(ii[0], ii[1], z0), [0, 0, -1]);
+      const ob0 = P(oi[0], oi[1], z0);
+      const ob1 = P(oj[0], oj[1], z0);
+      const ot0 = P(oi[0], oi[1], z1);
+      const ot1 = P(oj[0], oj[1], z1);
+      add(ob0, ot0, ot1, [oi[0] + oj[0], oi[1] + oj[1], 0]);
+      add(ob0, ot1, ob1, [oi[0] + oj[0], oi[1] + oj[1], 0]);
+      const ib0 = P(ii[0], ii[1], z0);
+      const ib1 = P(ij[0], ij[1], z0);
+      const it0 = P(ii[0], ii[1], z1);
+      const it1 = P(ij[0], ij[1], z1);
+      add(ib0, ib1, it1, [-(ii[0] + ij[0]), -(ii[1] + ij[1]), 0]);
+      add(ib0, it1, it0, [-(ii[0] + ij[0]), -(ii[1] + ij[1]), 0]);
+    }
+    return tris;
+  }
+
+  function extrudeWorm(gear) {
+    const twist = gear.twist;
+    const slices = clamp(Math.ceil(Math.abs(twist) / (Math.PI / 22.5)), 16, 140);
+    const sections = [];
+    for (let k = 0; k <= slices; k++) {
+      const rot = k === 0 ? 0 : k === slices ? twist : twist * k / slices;
+      sections.push({ poly: spinPoly(gear.poly, rot), z: gear.face * k / slices });
+    }
+    return extrudeSections(gear, sections);
+  }
+
+  function extrude(gear) {
+    if (gear.form === "rack") return extrudePrism(gear.poly, gear.face, gear.anchor);
+    if (gear.form === "internal") return extrudeRing(gear);
+    if (gear.form === "worm") return extrudeWorm(gear);
+    if (gear.form === "bevel") return extrudeBevel(gear);
+    if (gear.form === "herringbone" && Math.abs(gear.twist || 0) > 1e-5) return extrudeHerringbone(gear);
+    if (Math.abs(gear.twist || 0) > 1e-5) return extrudeHelical(gear);
+    const outer = gear.poly;
+    const z0 = 0;
+    const z1 = q(gear.face);
+    const tris = [];
+    const P = (x, y, z) => [q(x), q(y), q(z)];
+    const shape = gear.boreShape || "round";
+    const size = Number(gear.bore) || 0;
+    let rings = null;
+
+    if (shape === "poly" && size > 0.02) {
+      rings = polygonRings(outer, {
+        sides: clamp(gear.boreSides || 6, 3, 12),
+        inR: size / 2
+      });
+    } else if (shape !== "solid" && size > 0.04) {
+      let boreR = size / 2;
+      let maxStep = 0;
+      for (let i = 0; i < outer.length; i++) {
+        let d = Math.atan2(outer[(i + 1) % outer.length][1], outer[(i + 1) % outer.length][0]) - Math.atan2(outer[i][1], outer[i][0]);
+        while (d <= 0) d += Math.PI * 2;
+        while (d > Math.PI) d -= Math.PI * 2;
+        if (d > maxStep) maxStep = d;
+      }
+      const cosHalf = Math.cos(Math.min(maxStep, 1.2) / 2);
+      if (cosHalf > 0.2) boreR = boreR / cosHalf;
+      rings = outer.map((p) => {
+        const L = Math.hypot(p[0], p[1]) || 1;
+        return { outer: p, inner: [p[0] / L * boreR, p[1] / L * boreR] };
+      });
+    } else {
+      rings = outer.map((p) => ({ outer: p, inner: null }));
+    }
+
+    function normal(a, b, c) {
+      const abx = b[0] - a[0], aby = b[1] - a[1], abz = b[2] - a[2];
+      const acx = c[0] - a[0], acy = c[1] - a[1], acz = c[2] - a[2];
+      return [aby * acz - abz * acy, abz * acx - abx * acz, abx * acy - aby * acx];
+    }
+    function add(a, b, c, dir) {
+      const nrm = normal(a, b, c);
+      const mag = Math.hypot(nrm[0], nrm[1], nrm[2]);
+      if (mag < 1e-10) return;
+      const dot = nrm[0] * dir[0] + nrm[1] * dir[1] + nrm[2] * dir[2];
+      tris.push(dot >= 0 ? [a, b, c] : [a, c, b]);
+    }
+
+    const n = rings.length;
+    const bored = rings[0] && rings[0].inner;
+    for (let i = 0; i < n; i++) {
+      const j = (i + 1) % n;
+      const o0 = P(rings[i].outer[0], rings[i].outer[1], z1);
+      const o1 = P(rings[j].outer[0], rings[j].outer[1], z1);
+      const b0 = P(rings[i].outer[0], rings[i].outer[1], z0);
+      const b1 = P(rings[j].outer[0], rings[j].outer[1], z0);
+      const mx = (rings[i].outer[0] + rings[j].outer[0]) / 2;
+      const my = (rings[i].outer[1] + rings[j].outer[1]) / 2;
+      if (!bored) {
+        add(P(0, 0, z1), o0, o1, [0, 0, 1]);
+        add(P(0, 0, z0), b0, b1, [0, 0, -1]);
+      } else {
+        const i0 = P(rings[i].inner[0], rings[i].inner[1], z1);
+        const i1 = P(rings[j].inner[0], rings[j].inner[1], z1);
+        const k0 = P(rings[i].inner[0], rings[i].inner[1], z0);
+        const k1 = P(rings[j].inner[0], rings[j].inner[1], z0);
+        add(o0, o1, i1, [0, 0, 1]);
+        add(o0, i1, i0, [0, 0, 1]);
+        add(b0, b1, k1, [0, 0, -1]);
+        add(b0, k1, k0, [0, 0, -1]);
+        const ix = (rings[i].inner[0] + rings[j].inner[0]) / 2;
+        const iy = (rings[i].inner[1] + rings[j].inner[1]) / 2;
+        add(k0, k1, i1, [-ix, -iy, 0]);
+        add(k0, i1, i0, [-ix, -iy, 0]);
+      }
+      add(b0, o0, o1, [mx, my, 0]);
+      add(b0, o1, b1, [mx, my, 0]);
+    }
+    return tris;
+  }
+
+  function audit(tris) {
+    const edges = new Map();
+    const key = (v) => v[0].toFixed(4) + "," + v[1].toFixed(4) + "," + v[2].toFixed(4);
+    function edge(a, b) {
+      const ka = key(a);
+      const kb = key(b);
+      const k = ka < kb ? ka + "|" + kb : kb + "|" + ka;
+      edges.set(k, (edges.get(k) || 0) + 1);
+    }
+    let volume = 0;
+    for (const [a, b, c] of tris) {
+      edge(a, b); edge(b, c); edge(c, a);
+      volume += a[0] * (b[1] * c[2] - b[2] * c[1]) + a[1] * (b[2] * c[0] - b[0] * c[2]) + a[2] * (b[0] * c[1] - b[1] * c[0]);
+    }
+    let open = 0;
+    for (const count of edges.values()) if (count !== 2) open++;
+    return { triangles: tris.length, open, volume: Math.abs(volume) / 6 };
+  }
+
+  function stlBlob(tris, kind) {
+    const buffer = new ArrayBuffer(84 + tris.length * 50);
+    const view = new DataView(buffer);
+    const headers = {
+      bevel: "Giving You the Gears  bevel  millimeters  Z up",
+      herringbone: "Giving You the Gears  herringbone  millimeters  Z up",
+      helical: "Giving You the Gears  helical  millimeters  Z up",
+      rack: "Giving You the Gears  rack  millimeters  Z up",
+      internal: "Giving You the Gears  internal  millimeters  Z up",
+      worm: "Giving You the Gears  worm  millimeters  Z up",
+      wheel: "Giving You the Gears  worm wheel  millimeters  Z up"
+    };
+    const header = headers[kind] || "Giving You the Gears  spur  millimeters  Z up";
+    for (let i = 0; i < 80; i++) view.setUint8(i, i < header.length ? header.charCodeAt(i) : 0);
+    view.setUint32(80, tris.length, true);
+    let o = 84;
+    for (const [a, b, c] of tris) {
+      const n = faceNormal(a, b, c);
+      for (const v of [n, a, b, c]) {
+        view.setFloat32(o, v[0], true); o += 4;
+        view.setFloat32(o, v[1], true); o += 4;
+        view.setFloat32(o, v[2], true); o += 4;
+      }
+      view.setUint16(o, 0, true); o += 2;
+    }
+    return new Blob([buffer], { type: "model/stl" });
+  }
+
+  function faceNormal(a, b, c) {
+    const abx = b[0] - a[0], aby = b[1] - a[1], abz = b[2] - a[2];
+    const acx = c[0] - a[0], acy = c[1] - a[1], acz = c[2] - a[2];
+    let x = aby * acz - abz * acy;
+    let y = abz * acx - abx * acz;
+    let z = abx * acy - aby * acx;
+    const m = Math.hypot(x, y, z) || 1;
+    return [x / m, y / m, z / m];
+  }
+
+  function gcd(a, b) {
+    a = Math.abs(a);
+    b = Math.abs(b);
+    while (b) {
+      const t = b;
+      b = a % b;
+      a = t;
+    }
+    return a || 1;
+  }
+
+  function filename(gear, suffix) {
+    const shift = gear.shift ? "-x" + String(gear.shift).replace(".", "_") : "";
+    const hole = gear.boreShape === "solid" || !(gear.bore > 0)
+      ? "-solid"
+      : gear.boreShape === "poly" ? "-s" + gear.boreSides : "";
+    const helix = gear.form === "bevel"
+      ? "-bevel" + Math.round(gear.cone)
+      : gear.form === "herringbone"
+        ? "-v" + String(gear.helix).replace(".", "_") + (gear.hand === "left" ? "l" : "r")
+        : gear.form === "worm"
+          ? "-q" + String(gear.quotient).replace(".", "_") + (gear.hand === "left" ? "l" : "r")
+          : gear.form === "wheel"
+            ? "-wheel" + (gear.hand === "left" ? "l" : "r")
+            : gear.helix > 0.05
+              ? "-h" + String(gear.helix).replace(".", "_") + (gear.hand === "left" ? "l" : "r")
+              : "";
+    const kind = gear.form === "rack" ? "rack" : gear.form === "internal" ? "ring" : gear.form === "worm" ? "worm" : gear.form === "wheel" ? "wheel" : "gear";
+    return kind + "-z" + gear.teeth + "-m" + String(gear.module).replace(".", "_") + "-pa" + String(gear.angle).replace(".", "_") + helix + shift + hole + (suffix || "") + ".stl";
+  }
+
+  function download(name, blob) {
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = name;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(link.href), 1500);
+  }
+
+  function saveGear(gear) {
+    const tris = extrude(gear);
+    const check = audit(tris);
+    if (check.open !== 0) {
+      window.alert("The solid did not close (" + check.open + " open edges), so the file was not saved.");
+      return;
+    }
+    let kind = gear.form || "spur";
+    if (kind === "spur" && gear.helix > 0.05) kind = "helical";
+    download(filename(gear), stlBlob(tris, kind));
+  }
+
+  function worldToScreen(x, y) {
+    const s = fit.scale * view.k;
+    return [fit.ox * view.k + view.x + x * s, fit.oy * view.k + view.y - y * s];
+  }
+  function screenToWorld(sx, sy) {
+    const s = fit.scale * view.k;
+    return [(sx - fit.ox * view.k - view.x) / s, -(sy - fit.oy * view.k - view.y) / s];
+  }
+
+  function layoutBevel(model) {
+    const g = model.gear;
+    const mate = model.mate && model.mate.ok ? model.mate : null;
+    const gap = g.module * 2.6;
+    const mateX = mate ? g.ra + mate.ra + gap : 0;
+    const planLeft = -g.ra;
+    const planRight = mate ? mateX + mate.ra : g.ra;
+    const planBottom = mate ? -Math.max(g.ra, mate.ra) : -g.ra;
+    const rad = Math.PI / 180;
+    const L1 = g.rp / Math.tan(g.cone * rad);
+    const L2 = mate ? mate.rp / Math.tan(mate.cone * rad) : 0;
+    const pad = g.module * 3.4;
+    const rise = Math.max(g.ra, L2);
+    const leftReach = mate ? mate.ra : 0;
+    const rightReach = Math.max(L1, mate ? mate.ra : 0);
+    const planMid = (planLeft + planRight) / 2;
+    return {
+      mateX,
+      apexX: planMid + (leftReach - rightReach) / 2,
+      apexY: planBottom - pad - rise,
+      mate
+    };
+  }
+
+  function layoutWorm(model) {
+    const gear = model.gear;
+    const mate = model.mate && model.mate.ok ? model.mate : null;
+    const gap = gear.module * 3.4;
+    return { wheelX: mate ? gear.face + gap + mate.ra : 0, mate };
+  }
+
+  function computeFit(w, h) {
+    const gear = model.gear;
+    const clouds = gear.form === "worm" ? [] : [gear.poly];
+    let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+    if (gear.form === "worm") {
+      minX = 0;
+      maxX = gear.face;
+      minY = -gear.ra;
+      maxY = gear.ra;
+      const lay = layoutWorm(model);
+      if (lay.mate) clouds.push(place(lay.mate.poly, 0, lay.wheelX, 0));
+    } else if (gear.form === "rack") {
+      if (model.mate && model.mate.ok) clouds.push(place(model.mate.poly, model.rot2, model.pinionX, model.center));
+    } else if (gear.form === "internal") {
+      minX = -gear.rim;
+      maxX = gear.rim;
+      minY = -gear.rim;
+      maxY = gear.rim;
+      if (model.mate && model.mate.ok) clouds.push(place(model.mate.poly, 0, model.center, 0));
+    } else if (gear.form === "bevel") {
+      const lay = layoutBevel(model);
+      if (lay.mate) clouds.push(place(lay.mate.poly, 0, lay.mateX, 0));
+      const L1 = gear.rp / Math.tan(gear.cone * Math.PI / 180);
+      minX = Math.min(minX, lay.apexX);
+      maxX = Math.max(maxX, lay.apexX + L1);
+      minY = Math.min(minY, lay.apexY - gear.ra);
+      maxY = Math.max(maxY, lay.apexY + gear.ra);
+      if (lay.mate) {
+        const L2 = lay.mate.rp / Math.tan(lay.mate.cone * Math.PI / 180);
+        minX = Math.min(minX, lay.apexX - lay.mate.ra);
+        maxX = Math.max(maxX, lay.apexX + lay.mate.ra);
+        maxY = Math.max(maxY, lay.apexY + L2);
+      }
+    } else if (model.mate && model.mate.ok) {
+      clouds.push(place(model.mate.poly, model.rot2, model.center, 0));
+    }
+    for (const poly of clouds) {
+      for (const p of poly) {
+        minX = Math.min(minX, p[0]); maxX = Math.max(maxX, p[0]);
+        minY = Math.min(minY, p[1]); maxY = Math.max(maxY, p[1]);
+      }
+    }
+    const span = Math.max(maxX - minX, maxY - minY, 1);
+    const pad = span * 0.16;
+    minX -= pad; maxX += pad; minY -= pad; maxY += pad;
+    const scale = Math.min((w - 36) / (maxX - minX), (h - 36) / (maxY - minY));
+    const cx = (minX + maxX) / 2;
+    const cy = (minY + maxY) / 2;
+    return { scale, ox: w / 2 - cx * scale, oy: h / 2 + cy * scale };
+  }
+
+  function colors() {
+    const style = getComputedStyle(document.documentElement);
+    const value = (name) => style.getPropertyValue(name).trim();
+    return {
+      sheet: value("--sheet"),
+      ink: value("--ink"),
+      muted: value("--muted"),
+      red: value("--red"),
+      fill: value("--fill"),
+      fillB: value("--fill-b"),
+      guide: value("--guide")
+    };
+  }
+
+  function draw() {
+    if (!model || !model.gear.ok) {
+      const ctx = canvas.getContext("2d");
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      return;
+    }
+    const ink = colors();
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const w = canvas.width / dpr;
+    const h = canvas.height / dpr;
+    fit = computeFit(w, h);
+    const ctx = canvas.getContext("2d");
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, w, h);
+    ctx.fillStyle = ink.sheet;
+    ctx.fillRect(0, 0, w, h);
+
+    const gear = model.gear;
+    if (gear.form === "rack") {
+      drawRack(ctx, gear, ink);
+      return;
+    }
+    if (gear.form === "internal") {
+      drawInternal(ctx, gear, ink);
+      return;
+    }
+    if (gear.form === "worm") {
+      drawWorm(ctx, gear, ink);
+      return;
+    }
+    if (gear.form === "bevel") {
+      const lay = layoutBevel(model);
+      drawGear(ctx, gear.poly, 0, 0, ink.fill, gear, false, ink);
+      drawCenters(ctx, 0, 0, gear, ink);
+      if (lay.mate) {
+        drawGear(ctx, lay.mate.poly, lay.mateX, 0, ink.fillB, lay.mate, false, ink);
+        drawCenters(ctx, lay.mateX, 0, lay.mate, ink);
+      } else if (view.k < 2.2) {
+        dimension(ctx, -gear.ra, gear.ra, gear.ra + gear.module * 1.15, "OD " + fmt(gear.od), ink);
+      }
+      drawBevelCones(ctx, lay, ink);
+      return;
+    }
+    drawGear(ctx, gear.poly, 0, 0, ink.fill, gear, false, ink);
+    drawCenters(ctx, 0, 0, gear, ink);
+    if (model.mate && model.mate.ok) {
+      drawGear(ctx, model.mate.poly, model.center, model.rot2, ink.fillB, model.mate, true, ink);
+      drawCenters(ctx, model.center, 0, model.mate, ink);
+      if (view.k < 2.2) dimension(ctx, 0, model.center, -Math.max(gear.ra, model.mate.ra) - gear.module * 1.3, "CD " + fmt(model.center), ink);
+    } else if (view.k < 2.2) {
+      dimension(ctx, -gear.ra, gear.ra, gear.ra + gear.module * 1.15, "OD " + fmt(gear.od), ink);
+    }
+  }
+
+  function drawBevelCones(ctx, lay, ink) {
+    const gear = model.gear;
+    const ox = lay.apexX;
+    const oy = lay.apexY;
+    function line(x1, y1, x2, y2) {
+      const a = worldToScreen(ox + x1, oy + y1);
+      const b = worldToScreen(ox + x2, oy + y2);
+      ctx.beginPath();
+      ctx.moveTo(a[0], a[1]);
+      ctx.lineTo(b[0], b[1]);
+      ctx.stroke();
+    }
+    const d1 = gear.cone * Math.PI / 180;
+    const L1 = gear.rp / Math.tan(d1);
+    const toeX = L1 - gear.axial;
+    ctx.strokeStyle = ink.ink;
+    ctx.lineWidth = 1.15;
+    line(0, 0, L1, gear.ra);
+    line(0, 0, L1, -gear.ra);
+    line(L1, -gear.ra, L1, gear.ra);
+    line(toeX, -gear.ra * gear.toeScale, toeX, gear.ra * gear.toeScale);
+    ctx.setLineDash([4, 3]);
+    ctx.strokeStyle = ink.red;
+    line(0, 0, L1, gear.rp);
+    line(0, 0, L1, -gear.rp);
+    ctx.setLineDash([]);
+    ctx.fillStyle = ink.muted;
+    ctx.font = "12px Consolas, monospace";
+    const label = worldToScreen(ox + L1 * 0.45, oy - gear.ra - gear.module * 0.8);
+    ctx.fillText(fmt(gear.cone) + "°", label[0], label[1]);
+    if (!lay.mate) return;
+    const mate = lay.mate;
+    const L2 = mate.rp / Math.tan(mate.cone * Math.PI / 180);
+    const toeY = L2 - mate.axial;
+    ctx.strokeStyle = ink.ink;
+    ctx.lineWidth = 1.15;
+    line(0, 0, mate.ra, L2);
+    line(0, 0, -mate.ra, L2);
+    line(-mate.ra, L2, mate.ra, L2);
+    line(-mate.ra * mate.toeScale, toeY, mate.ra * mate.toeScale, toeY);
+    ctx.setLineDash([4, 3]);
+    ctx.strokeStyle = ink.red;
+    line(0, 0, mate.rp, L2);
+    line(0, 0, -mate.rp, L2);
+    ctx.setLineDash([]);
+    const mark = Math.max(gear.module * 1.1, 3);
+    ctx.strokeStyle = ink.ink;
+    ctx.lineWidth = 1;
+    line(mark, 0, mark, mark);
+    line(0, mark, mark, mark);
+    const corner = worldToScreen(ox + mark + gear.module * 0.4, oy + mark + gear.module * 0.3);
+    ctx.fillStyle = ink.red;
+    ctx.fillText("90°", corner[0], corner[1]);
+    const mateLabel = worldToScreen(ox + mate.ra + gear.module * 0.6, oy + L2 * 0.55);
+    ctx.fillStyle = ink.muted;
+    ctx.fillText(fmt(mate.cone) + "°", mateLabel[0], mateLabel[1]);
+  }
+
+  function drawRack(ctx, gear, ink) {
+    ctx.beginPath();
+    gear.poly.forEach((p, i) => {
+      const s = worldToScreen(p[0], p[1]);
+      if (i === 0) ctx.moveTo(s[0], s[1]);
+      else ctx.lineTo(s[0], s[1]);
+    });
+    ctx.closePath();
+    ctx.fillStyle = ink.fill;
+    ctx.fill();
+    ctx.strokeStyle = ink.ink;
+    ctx.lineWidth = 1.15;
+    ctx.stroke();
+    const a = worldToScreen(0, 0);
+    const b = worldToScreen(gear.length, 0);
+    ctx.setLineDash([4, 3]);
+    ctx.strokeStyle = ink.red;
+    ctx.beginPath();
+    ctx.moveTo(a[0], a[1]);
+    ctx.lineTo(b[0], b[1]);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    if (model.mate && model.mate.ok) {
+      drawGear(ctx, model.mate.poly, model.pinionX, model.center, ink.fillB, model.mate, true, ink);
+      drawCenters(ctx, model.pinionX, model.center, model.mate, ink);
+    }
+    if (view.k < 2.2) dimension(ctx, 0, gear.length, -gear.bar - gear.module, "L " + fmt(gear.length), ink);
+  }
+
+  function drawInternal(ctx, gear, ink) {
+    const rot = model.ringRot || 0;
+    const n = 140;
+    function rimPath() {
+      ctx.beginPath();
+      for (let i = 0; i <= n; i++) {
+        const a = (i / n) * Math.PI * 2;
+        const s = worldToScreen(Math.cos(a) * gear.rim, Math.sin(a) * gear.rim);
+        if (i === 0) ctx.moveTo(s[0], s[1]);
+        else ctx.lineTo(s[0], s[1]);
+      }
+      ctx.closePath();
+    }
+    rimPath();
+    gear.poly.forEach((p, i) => drawLocal(ctx, p[0], p[1], 0, 0, rot, i === 0));
+    ctx.closePath();
+    ctx.fillStyle = ink.fill;
+    ctx.fill("evenodd");
+    rimPath();
+    ctx.strokeStyle = ink.ink;
+    ctx.lineWidth = 1.15;
+    ctx.stroke();
+    ctx.beginPath();
+    gear.poly.forEach((p, i) => drawLocal(ctx, p[0], p[1], 0, 0, rot, i === 0));
+    ctx.closePath();
+    ctx.stroke();
+    circle(ctx, 0, 0, gear.rp, ink.red, [4, 3]);
+    circle(ctx, 0, 0, gear.ra, ink.guide, []);
+    circle(ctx, 0, 0, gear.rf, ink.guide, []);
+    if (model.mate && model.mate.ok) {
+      drawGear(ctx, model.mate.poly, model.center, 0, ink.fillB, model.mate, false, ink);
+      drawCenters(ctx, model.center, 0, model.mate, ink);
+      if (view.k < 2.2) dimension(ctx, 0, model.center, -gear.rim - gear.module * 1.5, "CD " + fmt(model.center), ink);
+    }
+  }
+
+  function drawWorm(ctx, gear, ink) {
+    const pitch = gear.pitch;
+    const tanA = Math.tan(gear.angle * Math.PI / 180);
+    const tipHalf = gear.thickness / 2 - (gear.ra - gear.rp) * tanA;
+    const rootHalf = gear.thickness / 2 + (gear.rp - gear.rf) * tanA;
+    const offset = gear.teeth % 2 === 1 ? pitch / 2 : 0;
+    function clipPoly(poly) {
+      function clip(limit, keep) {
+        if (poly.length < 2) { poly = []; return; }
+        const out = [];
+        for (let i = 0; i < poly.length; i++) {
+          const a = poly[i];
+          const b = poly[(i + 1) % poly.length];
+          const ain = keep(a[0]);
+          const bin = keep(b[0]);
+          const hit = () => {
+            const t = (limit - a[0]) / ((b[0] - a[0]) || 1e-9);
+            return [limit, a[1] + (b[1] - a[1]) * t];
+          };
+          if (ain && bin) out.push(b);
+          else if (ain && !bin) out.push(hit());
+          else if (!ain && bin) { out.push(hit()); out.push(b); }
+        }
+        poly = out;
+      }
+      clip(0, (x) => x >= -1e-6);
+      clip(gear.face, (x) => x <= gear.face + 1e-6);
+      return poly;
+    }
+    function fillPoly(poly, color) {
+      if (!poly || poly.length < 3) return;
+      ctx.beginPath();
+      poly.forEach((p, i) => {
+        const s = worldToScreen(p[0], p[1]);
+        if (i === 0) ctx.moveTo(s[0], s[1]);
+        else ctx.lineTo(s[0], s[1]);
+      });
+      ctx.closePath();
+      ctx.fillStyle = color;
+      ctx.fill();
+      ctx.strokeStyle = ink.ink;
+      ctx.lineWidth = 1.05;
+      ctx.stroke();
+    }
+    fillPoly([[0, -gear.rf], [gear.face, -gear.rf], [gear.face, gear.rf], [0, gear.rf]], ink.fill);
+    const count = Math.ceil(gear.face / pitch) + 2;
+    for (let i = -1; i < count; i++) {
+      const cx = (i + 0.5) * pitch;
+      fillPoly(clipPoly([
+        [cx - rootHalf, gear.rf],
+        [cx - tipHalf, gear.ra],
+        [cx + tipHalf, gear.ra],
+        [cx + rootHalf, gear.rf]
+      ]), ink.fill);
+      const bx = cx + offset;
+      fillPoly(clipPoly([
+        [bx - rootHalf, -gear.rf],
+        [bx - tipHalf, -gear.ra],
+        [bx + tipHalf, -gear.ra],
+        [bx + rootHalf, -gear.rf]
+      ]), ink.fill);
+    }
+    ctx.setLineDash([4, 3]);
+    ctx.strokeStyle = ink.red;
+    ctx.beginPath();
+    let s1 = worldToScreen(0, gear.rp);
+    let s2 = worldToScreen(gear.face, gear.rp);
+    ctx.moveTo(s1[0], s1[1]);
+    ctx.lineTo(s2[0], s2[1]);
+    s1 = worldToScreen(0, -gear.rp);
+    s2 = worldToScreen(gear.face, -gear.rp);
+    ctx.moveTo(s1[0], s1[1]);
+    ctx.lineTo(s2[0], s2[1]);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    const lay = layoutWorm(model);
+    if (lay.mate) {
+      drawGear(ctx, lay.mate.poly, lay.wheelX, 0, ink.fillB, lay.mate, false, ink);
+      drawCenters(ctx, lay.wheelX, 0, lay.mate, ink);
+    }
+    const mark = gear.module * 1.4;
+    const ax = gear.face + gear.module;
+    const ay = gear.ra + gear.module * 0.4;
+    ctx.strokeStyle = ink.ink;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    const q = worldToScreen(ax + mark, ay);
+    const r = worldToScreen(ax + mark, ay + mark);
+    const t = worldToScreen(ax, ay + mark);
+    ctx.moveTo(q[0], q[1]);
+    ctx.lineTo(r[0], r[1]);
+    ctx.lineTo(t[0], t[1]);
+    ctx.stroke();
+    ctx.fillStyle = ink.red;
+    ctx.font = "12px Consolas, monospace";
+    const label = worldToScreen(ax + mark + gear.module * 0.35, ay + mark * 0.45);
+    ctx.fillText("90°", label[0], label[1]);
+  }
+
+  function holePath(gear) {
+    const shape = gear.boreShape || "round";
+    if (shape === "solid" || !(gear.bore > 0)) return null;
+    if (shape !== "poly") return { circle: gear.bore / 2 };
+    const sides = clamp(Math.round(gear.boreSides || 6), 3, 12);
+    const r = (gear.bore / 2) / Math.cos(Math.PI / sides);
+    const pts = [];
+    for (let k = 0; k < sides; k++) {
+      const a = Math.PI / 2 + k * 2 * Math.PI / sides;
+      pts.push([Math.cos(a) * r, Math.sin(a) * r]);
+    }
+    return { pts };
+  }
+
+  function drawLocal(ctx, x, y, ox, oy, rot, move) {
+    const wx = ox + x * Math.cos(rot) - y * Math.sin(rot);
+    const wy = oy + x * Math.sin(rot) + y * Math.cos(rot);
+    const s = worldToScreen(wx, wy);
+    if (move) ctx.moveTo(s[0], s[1]);
+    else ctx.lineTo(s[0], s[1]);
+  }
+  function drawGear(ctx, poly, ox, oy, fill, gear, rotated, ink) {
+    const rot = rotated ? model.rot2 : 0;
+    const hole = holePath(gear);
+    ctx.beginPath();
+    poly.forEach((p, i) => drawLocal(ctx, p[0], p[1], ox, oy, rot, i === 0));
+    ctx.closePath();
+    if (hole && hole.circle) {
+      const s = worldToScreen(ox, oy);
+      const r = hole.circle * fit.scale * view.k;
+      ctx.moveTo(s[0] + r, s[1]);
+      ctx.arc(s[0], s[1], r, 0, Math.PI * 2);
+    } else if (hole && hole.pts) {
+      hole.pts.forEach((p, i) => drawLocal(ctx, p[0], p[1], ox, oy, rot, i === 0));
+      ctx.closePath();
+    }
+    ctx.fillStyle = fill;
+    ctx.fill("evenodd");
+    ctx.beginPath();
+    poly.forEach((p, i) => drawLocal(ctx, p[0], p[1], ox, oy, rot, i === 0));
+    ctx.closePath();
+    ctx.strokeStyle = ink.ink;
+    ctx.lineWidth = 1.15;
+    ctx.stroke();
+    if (hole && hole.pts) {
+      ctx.beginPath();
+      hole.pts.forEach((p, i) => drawLocal(ctx, p[0], p[1], ox, oy, rot, i === 0));
+      ctx.closePath();
+      ctx.stroke();
+    }
+    if (gear.form === "bevel" && gear.toeScale < 0.999) {
+      const sc = gear.toeScale;
+      ctx.beginPath();
+      poly.forEach((p, i) => drawLocal(ctx, p[0] * sc, p[1] * sc, ox, oy, rot, i === 0));
+      ctx.closePath();
+      ctx.setLineDash([3, 2]);
+      ctx.lineWidth = 0.9;
+      ctx.stroke();
+      ctx.setLineDash([]);
+    } else if (Math.abs(gear.twist || 0) > 1e-4) {
+      const half = gear.twist / 2;
+      const c = Math.cos(half);
+      const s = Math.sin(half);
+      ctx.beginPath();
+      poly.forEach((p, i) => {
+        drawLocal(ctx, p[0] * c - p[1] * s, p[0] * s + p[1] * c, ox, oy, rot, i === 0);
+      });
+      ctx.closePath();
+      ctx.setLineDash([3, 2]);
+      ctx.lineWidth = 0.9;
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+
+    circle(ctx, ox, oy, gear.rp, ink.red, [4, 3]);
+    circle(ctx, ox, oy, gear.ra, ink.guide, []);
+    circle(ctx, ox, oy, gear.rf, ink.guide, []);
+  }
+
+  function circle(ctx, ox, oy, r, color, dash) {
+    const s = worldToScreen(ox, oy);
+    ctx.beginPath();
+    ctx.setLineDash(dash);
+    ctx.strokeStyle = color;
+    ctx.lineWidth = dash.length ? 1 : 0.8;
+    ctx.arc(s[0], s[1], r * fit.scale * view.k, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+
+  function drawCenters(ctx, ox, oy, gear, ink) {
+    const s = worldToScreen(ox, oy);
+    ctx.strokeStyle = ink.ink;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(s[0] - 7, s[1]); ctx.lineTo(s[0] + 7, s[1]);
+    ctx.moveTo(s[0], s[1] - 7); ctx.lineTo(s[0], s[1] + 7);
+    ctx.stroke();
+    if (view.k > 2.4) return;
+    ctx.fillStyle = ink.muted;
+    ctx.font = "11px Consolas, monospace";
+    ctx.fillText("PD " + fmt(gear.pd), s[0] + 8, s[1] - gear.rp * fit.scale * view.k * 0.15);
+  }
+
+  function dimension(ctx, x1, x2, y, label, ink) {
+    const a = worldToScreen(x1, y);
+    const b = worldToScreen(x2, y);
+    const yLine = (a[1] + b[1]) / 2;
+    ctx.strokeStyle = ink.red;
+    ctx.fillStyle = ink.red;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(a[0], yLine); ctx.lineTo(b[0], yLine);
+    ctx.moveTo(a[0], yLine - 4); ctx.lineTo(a[0], yLine + 4);
+    ctx.moveTo(b[0], yLine - 4); ctx.lineTo(b[0], yLine + 4);
+    ctx.stroke();
+    ctx.font = "12px Consolas, monospace";
+    ctx.textAlign = "center";
+    ctx.fillText(label, (a[0] + b[0]) / 2, yLine - 5);
+    ctx.textAlign = "left";
+  }
+
+  function gearAudit(gear) {
+    if (!gear || !gear.ok) return null;
+    return audit(extrude(gear));
+  }
+
+  function torqueStory(input, gear, mate) {
+    if (!input) return { text: "", rows: [] };
+    const tin = input.torqueIn;
+    if (!input.pair || !mate || !mate.ok) {
+      let alone = "One gear does not change torque. Add a mating gear. The tooth counts set the trade: more teeth on the output means more torque and less speed. A 20 driving a 40 doubles the torque and halves the speed.";
+      if (gear && gear.form === "bevel") {
+        alone = "One bevel does not change torque. Add a mating gear and the shafts sit at 90°. The same tooth count on both is a miter: the speed stays the same and the drive turns a corner. A 20 driving a 40 is 2:1 around that corner.";
+        const push = bevelThrust(gear, tin);
+        if (push > 0) return { text: alone + " Along its own shaft this tooth pushes with about " + fmt(push) + " N.", rows: [["Axial thrust", fmt(push) + " N"]] };
+        return { text: alone, rows: [] };
+      }
+      if (gear && gear.form === "rack") {
+        return { text: "A rack turns rotation into a straight slide. Add a pinion. One turn of the pinion moves the rack by π times the module times the pinion teeth.", rows: [] };
+      }
+      if (gear && gear.form === "internal") {
+        return { text: "An internal ring has the teeth pointing in. Add a pinion to sit inside it. The two shafts then turn the same way.", rows: [] };
+      }
+      if (gear && gear.form === "worm") {
+        return { text: "A worm is a screw. Add the wheel. One turn of a single-start worm advances the wheel by one tooth, and the shafts sit at 90°. A shallow lead may refuse to be turned backward.", rows: [] };
+      }
+      if (gear && gear.form === "herringbone") {
+        const half = axialThrust(gear, tin) / 2;
+        if (half > 0) return { text: alone + " The two halves of the V push opposite ways, about " + fmt(half) + " N each, so the end load cancels.", rows: [["Axial thrust", "cancels"]] };
+      }
+      const thrust = axialThrust(gear, tin);
+      if (!(thrust > 0)) return { text: alone, rows: [] };
+      return {
+        text: alone + " This helix pushes along the shaft with about " + fmt(thrust) + " N at the torque above. The bearings, or a shoulder on the shaft, have to hold that.",
+        rows: [["Axial thrust", fmt(thrust) + " N"]]
+      };
+    }
+    if (gear.form === "rack") {
+      const travel = Math.PI * mate.module * mate.teeth;
+      const force = tin > 0 && mate.rp > 0 ? tin * 1000 / mate.rp : 0;
+      const rows = [
+        ["Travel per pinion turn", fmt(travel) + " mm"],
+        ["Rack pitch", fmt(gear.pitch) + " mm"]
+      ];
+      let text;
+      if (input.driver === "b") {
+        text = "The " + mate.teeth + "-tooth pinion is driving the rack. One turn of the pinion slides the rack " + fmt(travel) + " mm. ";
+        if (force > 0) {
+          text += fmt(tin) + " N·m at the pinion pushes the rack with about " + fmt(force) + " N, before friction.";
+          rows.push(["Rack force", fmt(force) + " N"]);
+        }
+      } else {
+        text = "The rack is the slider. Moving it one tooth, " + fmt(gear.pitch) + " mm, turns the pinion " + fmt(360 / mate.teeth) + "°. A full turn of the pinion is " + fmt(travel) + " mm of rack.";
+      }
+      return { text: text, rows: rows };
+    }
+    if (gear.form === "worm") {
+      const starts = gear.teeth;
+      const zWheel = mate.teeth;
+      const g = gcd(starts, zWheel);
+      const label = (zWheel / g) + ":" + (starts / g);
+      const eta = gear.efficiency;
+      const wormDrives = input.driver !== "b";
+      const rows = [["Gear ratio", label], ["Lead angle", fmt(gear.leadAngle) + "°"], ["Efficiency", Math.round(eta * 100) + "%"]];
+      let text;
+      if (wormDrives) {
+        const ideal = tin * (zWheel / starts);
+        const real = ideal * eta;
+        text = "The " + starts + "-start worm is driving the " + zWheel + "-tooth wheel, a " + label + " reduction. One turn of the worm makes " + fmt(starts / zWheel) + " turns of the wheel. " + fmt(tin) + " N·m in becomes " + fmt(ideal) + " N·m out on paper, about " + fmt(real) + " N·m after the screw's friction. ";
+        rows.push(["Output turns", fmt(starts / zWheel) + " per turn in"]);
+        rows.push(["Ideal torque", fmt(ideal) + " N·m"]);
+        rows.push(["Torque after friction", fmt(real) + " N·m"]);
+        const push = tin > 0 && gear.rp > 0 ? tin * 1000 / gear.rp / Math.tan(gear.leadAngle * Math.PI / 180) : 0;
+        if (push > 0) {
+          text += "The screw pushes along its own shaft with about " + fmt(push) + " N, so the worm bearings have to hold that.";
+          rows.push(["Axial thrust", fmt(push) + " N"]);
+        }
+        if (gear.leadAngle < gear.lockAngle) text += " This lead will not backdrive.";
+      } else if (gear.leadAngle < gear.lockAngle) {
+        text = "The wheel is trying to drive the worm, and this lead will not let it. The screw holds. Drive the worm when you want the " + label + " reduction.";
+      } else {
+        const ideal = tin * starts / zWheel;
+        const real = ideal * eta;
+        text = "The wheel is driving the worm, a speed-up. Backdriving loses at least as much as the forward mesh. " + fmt(tin) + " N·m at the wheel is about " + fmt(real) + " N·m at the screw.";
+        rows.push(["Ideal torque", fmt(ideal) + " N·m"]);
+        rows.push(["Torque after friction", fmt(real) + " N·m"]);
+      }
+      text += " The shafts are at 90°. Center distance is " + fmt(gear.rp + mate.rp) + " mm.";
+      return { text: text, rows: rows };
+    }
+    const driveB = input.driver === "b";
+    const driver = driveB ? mate : gear;
+    const zIn = driver.teeth;
+    const zOut = driveB ? gear.teeth : mate.teeth;
+    const g = gcd(zIn, zOut);
+    const turns = zIn / zOut;
+    const mult = zOut / zIn;
+    const ideal = tin * mult;
+    const real = ideal * 0.95;
+    const label = (zOut / g) + ":" + (zIn / g);
+    let text = "The " + zIn + "-tooth gear is driving the " + zOut + "-tooth gear, a " + label + (mult >= 1 ? " reduction" : " speed increase") + ". One turn of the driver makes " + fmt(turns) + " turns at the output. " + fmt(tin) + " N·m in becomes " + fmt(ideal) + " N·m out on paper, about " + fmt(real) + " N·m after a 5% mesh loss. ";
+    if (gear.form === "internal") text += "Both shafts turn the same way. ";
+    if (gear.form !== "internal" && mult > 6) text += "One mesh past about 6:1 leaves a small pinion. Two 3:1 meshes in a row make 9:1 and keep stronger teeth.";
+    else if (mult >= 1) text += "The output is slower and stronger. The extra torque is paid for in speed.";
+    else text += "The output is faster and weaker. This is a speed-up.";
+    const rows = [
+      ["Gear ratio", label],
+      ["Output turns", fmt(turns) + " per turn in"],
+      ["Ideal torque", fmt(ideal) + " N·m"],
+      ["Torque at 95%", fmt(real) + " N·m"]
+    ];
+    if (driver.form === "bevel") {
+      text += " The shafts meet at 90°. The driver cone is " + fmt(driver.cone) + "° and the output cone is " + fmt((driveB ? gear : mate).cone) + "°.";
+      const push = bevelThrust(driver, tin);
+      if (push > 0) {
+        rows.push(["Axial thrust", fmt(push) + " N"]);
+        text += " Along the driver shaft the tooth pushes with about " + fmt(push) + " N.";
+      }
+    } else if (driver.form === "herringbone") {
+      const half = axialThrust(driver, tin) / 2;
+      if (half > 0) {
+        rows.push(["Axial thrust", "cancels"]);
+        text += " The two halves of the V push opposite ways, about " + fmt(half) + " N each, so the end load on the shaft cancels.";
+      }
+    } else {
+      const thrust = axialThrust(driver, tin);
+      if (thrust > 0) {
+        rows.push(["Axial thrust", fmt(thrust) + " N"]);
+        text += " The helix also pushes along the shaft with about " + fmt(thrust) + " N. The bearings, or a shoulder on the shaft, have to hold that.";
+      }
+    }
+    return { text: text, rows: rows };
+  }
+
+  function bevelThrust(gear, tin) {
+    if (!gear || gear.form !== "bevel" || !(tin > 0) || !(gear.rp > 0)) return 0;
+    return tin * 1000 / gear.rp * Math.tan(gear.angle * Math.PI / 180) * Math.sin(gear.cone * Math.PI / 180);
+  }
+
+  function axialThrust(gear, tin) {
+    if (!gear || !(gear.helix > 0.05) || !(tin > 0) || !(gear.rp > 0)) return 0;
+    return tin * 1000 / gear.rp * Math.tan(gear.helix * Math.PI / 180);
+  }
+
+  function renderReadout() {
+    const rows = [];
+    const gear = model.gear;
+    if (!gear.ok) {
+      $("readout").innerHTML = "";
+      $("story").textContent = model.warnings[0] || "";
+    } else {
+      if (gear.form === "rack") {
+        rows.push(["Rack length", fmt(gear.length)]);
+        rows.push(["Bar height", fmt(gear.bar)]);
+        rows.push(["Tooth pitch", fmt(gear.pitch)]);
+        rows.push(["Tooth thickness", fmt(gear.thickness)]);
+        rows.push(["Addendum", fmt(gear.addendum)]);
+      } else if (gear.form === "worm") {
+        rows.push(["Pitch diameter", fmt(gear.pd)]);
+        rows.push(["Outside diameter", fmt(gear.od)]);
+        rows.push(["Root diameter", fmt(gear.rd)]);
+        rows.push(["Axial pitch", fmt(gear.pitch)]);
+        rows.push(["Lead", fmt(gear.lead)]);
+        rows.push(["Lead angle", fmt(gear.leadAngle) + "°"]);
+        rows.push(["Starts", String(gear.teeth)]);
+        rows.push(["Diameter quotient", fmt(gear.quotient)]);
+      } else {
+        rows.push(["Pitch diameter", fmt(gear.pd)]);
+        rows.push(["Outside diameter", fmt(gear.od)]);
+        rows.push(["Root diameter", fmt(gear.rd)]);
+        rows.push(["Circular pitch", fmt(Math.PI * (gear.mt || gear.module))]);
+        rows.push(["Tooth thickness", fmt(gear.thickness)]);
+      }
+      if (gear.form === "internal") {
+        rows.push(["Inside diameter", fmt(gear.id)]);
+      }
+      if (gear.form === "bevel") {
+        rows.push(["Pitch angle", fmt(gear.cone) + "°"]);
+        rows.push(["Cone distance", fmt(gear.coneDistance)]);
+        rows.push(["Axial thickness", fmt(gear.axial)]);
+        rows.push(["Small-end OD", fmt(gear.od * gear.toeScale)]);
+        if (model.mate && model.mate.ok) {
+          rows.push(["Mate pitch diameter", fmt(model.mate.pd)]);
+          rows.push(["Mate pitch angle", fmt(model.mate.cone) + "°"]);
+          rows.push(["Shaft angle", "90°"]);
+        }
+      } else if (gear.form === "worm") {
+        if (model.mate && model.mate.ok) {
+          rows.push(["Wheel teeth", String(model.mate.teeth)]);
+          rows.push(["Wheel pitch diameter", fmt(model.mate.pd)]);
+          rows.push(["Wheel face", fmt(model.mate.face)]);
+          rows.push(["Center distance", fmt(model.center)]);
+          rows.push(["Shaft angle", "90°"]);
+        }
+      } else if (gear.form === "rack") {
+        if (model.mate && model.mate.ok) {
+          rows.push(["Pinion pitch diameter", fmt(model.mate.pd)]);
+          rows.push(["Pinion outside diameter", fmt(model.mate.od)]);
+          rows.push(["Pitch line distance", fmt(model.center)]);
+          rows.push(["Mesh clearance", fmt(model.clearance)]);
+        }
+      } else {
+        if (gear.helix > 0.05) {
+          const lean = gear.form === "herringbone" ? "V " : "";
+          rows.push(["Helix", lean + fmt(gear.helix) + "° " + (gear.hand === "left" ? "left" : "right")]);
+          rows.push(["Transverse module", fmt(gear.mt)]);
+          rows.push(["Face overlap", fmt(gear.overlap) + (gear.form === "herringbone" ? " each half" : " teeth")]);
+          if (model.mate && model.mate.ok) rows.push(["Mate hand", model.mate.hand === "left" ? "Left" : "Right"]);
+        }
+        if (model.mate && model.mate.ok) {
+          rows.push(["Mate pitch diameter", fmt(model.mate.pd)]);
+          rows.push(["Mate outside diameter", fmt(model.mate.od)]);
+          rows.push(["Center distance", fmt(model.center)]);
+          rows.push(["Mesh clearance", fmt(model.clearance)]);
+        }
+      }
+      const solid = gearAudit(gear);
+      if (solid) {
+        rows.push(["Triangles", String(solid.triangles)]);
+        rows.push(["Volume, mm³", fmt(solid.volume)]);
+      }
+      const input = read();
+      const story = torqueStory(input, gear, model.mate);
+      if (story.rows) rows.push.apply(rows, story.rows);
+      $("story").textContent = story.text;
+      $("readout").innerHTML = rows.map((row) => "<tr><th>" + row[0] + "</th><td>" + row[1] + "</td></tr>").join("");
+      let plate = "M" + fmt(gear.module) + "  Z" + gear.teeth + "  " + fmt(gear.angle) + "°";
+      if (gear.form === "bevel") plate += "  bevel " + fmt(gear.cone) + "°";
+      else if (gear.form === "herringbone") plate += "  V" + fmt(gear.helix) + "° " + (gear.hand === "left" ? "LH" : "RH");
+      else if (gear.form === "rack") plate += "  rack";
+      else if (gear.form === "internal") plate += "  ring";
+      else if (gear.form === "worm") plate += "  worm q" + fmt(gear.quotient) + " " + (gear.hand === "left" ? "LH" : "RH");
+      else if (gear.helix > 0.05) plate += "  H" + fmt(gear.helix) + "° " + (gear.hand === "left" ? "LH" : "RH");
+      $("plate-line").textContent = plate;
+      $("hint").textContent = gear.form === "bevel"
+        ? "Dashed line is the small end. The view below is the 90° shafts."
+        : gear.form === "rack"
+          ? "The red line is the pitch line. The pinion sits on it."
+          : gear.form === "internal"
+            ? "The pinion runs inside the ring. Both shafts turn the same way."
+            : gear.form === "worm"
+              ? "The screw is the worm. The round gear is the wheel. Shafts at 90°."
+        : gear.form === "herringbone"
+          ? "Dashed line is the point of the V. Scroll to inspect. Drag to move. Double-click to fit."
+          : gear.helix > 0.05
+            ? "Dashed line is the tooth at mid-thickness. Scroll to inspect. Drag to move. Double-click to fit."
+            : "Scroll to inspect a tooth. Drag to move. Double-click to fit.";
+      if (viewMode === "solid") $("hint").textContent = "Drag to turn. Scroll to zoom. Double-click to fit.";
+    }
+
+    const notes = $("notes");
+    notes.innerHTML = "";
+    const lines = model.warnings.slice();
+    const solid = gear.ok ? gearAudit(gear) : null;
+    if (gear.ok && solid && solid.open === 0 && !lines.length) {
+      lines.push("Closed solid. Ready to save.");
+    }
+    if (solid && solid.open !== 0) lines.push("The mesh is open, so saving is held back.");
+    for (const line of lines) {
+      const li = document.createElement("li");
+      li.textContent = line;
+      if (line.indexOf("Ready to save") !== -1) li.className = "ok";
+      notes.appendChild(li);
+    }
+    const blocked = !gear.ok || (solid && solid.open !== 0) || (model.clearance !== null && model.clearance < -0.03);
+    $("save-a").disabled = blocked || !gear.ok;
+    const mateOk = model.mate && model.mate.ok;
+    $("save-b").hidden = !model.pair;
+    $("save-b").disabled = blocked || !mateOk;
+  }
+
+  function render() {
+    const input = read();
+    if (!input) return;
+    $("mate").disabled = !input.pair;
+    $("driver").disabled = !input.pair;
+    syncHoles();
+    syncForm();
+    model = build(input);
+    if (model.gear.ok) {
+      if (viewMode === "solid") refreshSolid();
+      else draw();
+    } else {
+      if (viewMode === "solid") {
+        viewMode = "draw";
+        $("solid").hidden = true;
+        markMode();
+      }
+      const ctx = canvas.getContext("2d");
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      const ink = colors();
+      ctx.fillStyle = ink.sheet;
+      ctx.fillRect(0, 0, canvas.width / dpr, canvas.height / dpr);
+      ctx.fillStyle = ink.red;
+      ctx.font = "14px Segoe UI, sans-serif";
+      ctx.fillText(model.warnings[0] || "Check the numbers.", 24, 36);
+    }
+    renderReadout();
+    syncPreset();
+  }
+
+  function syncPreset() {
+    const teeth = $("teeth").value;
+    const pair = $("pair").checked;
+    const mate = $("teeth-b").value;
+    const shift = Number($("shift").value);
+    const helix = Number($("helix").value);
+    const form = $("form").value;
+    let active = "";
+    if (!pair && teeth === "30" && shift === 0 && form === "spur") active = "single";
+    else if (pair && teeth === "24" && mate === "24" && form === "spur") active = "even";
+    else if (pair && teeth === "20" && mate === "40" && form === "spur") active = "two";
+    else if (pair && teeth === "16" && mate === "48" && form === "spur") active = "pair";
+    else if (pair && teeth === "12" && mate === "48" && form === "spur") active = "four";
+    else if (pair && teeth === "20" && mate === "40" && form === "helical" && helix === 20) active = "helical";
+    else if (pair && teeth === "20" && mate === "40" && form === "herringbone" && helix === 20) active = "herringbone";
+    else if (pair && teeth === "20" && mate === "40" && form === "bevel") active = "bevel";
+    else if (pair && teeth === "10" && mate === "20" && form === "rack") active = "rack";
+    else if (pair && teeth === "60" && mate === "20" && form === "internal") active = "internal";
+    else if (pair && teeth === "1" && mate === "30" && form === "worm") active = "worm";
+    document.querySelectorAll(".presets button").forEach((button) => {
+      button.setAttribute("aria-pressed", button.dataset.preset === active ? "true" : "false");
+    });
+  }
+
+  function setHole(which, shape, sides) {
+    if (which === "b") {
+      $("bore-shape-b").value = shape;
+      if (sides) $("bore-sides-b").value = sides;
+    } else {
+      $("bore-shape").value = shape;
+      if (sides) $("bore-sides").value = sides;
+    }
+  }
+
+  function syncHoles() {
+    [["bore-shape", "side-row", "bore", "bore-unit", "side-chips", "bore-sides"],
+     ["bore-shape-b", "side-row-b", "bore-b", "bore-unit-b", "side-chips-b", "bore-sides-b"]].forEach((ids) => {
+      const shape = $(ids[0]).value;
+      $(ids[1]).hidden = shape !== "poly";
+      $(ids[2]).disabled = shape === "solid";
+      $(ids[3]).textContent = shape === "poly" ? "across flats, mm" : "diameter, mm";
+      const sides = String(Math.round(Number($(ids[5]).value)));
+      document.querySelectorAll("#" + ids[4] + " button").forEach((button) => {
+        button.setAttribute("aria-pressed", shape === "poly" && button.dataset.sides === sides ? "true" : "false");
+      });
+    });
+  }
+
+  function syncForm() {
+    const form = $("form").value;
+    const helical = form === "helical" || form === "herringbone";
+    const worm = form === "worm";
+    const solidBlank = form === "rack" || form === "internal";
+    $("helix").disabled = !helical;
+    $("hand").disabled = !(helical || worm);
+    const teeth = $("teeth");
+    const name = $("teeth-name");
+    if (worm) {
+      teeth.min = "1"; teeth.max = "6";
+      if (name) name.textContent = "Starts";
+    } else if (form === "rack") {
+      teeth.min = "3"; teeth.max = "80";
+      if (name) name.textContent = "Rack teeth";
+    } else if (form === "internal") {
+      teeth.min = "20"; teeth.max = "240";
+      if (name) name.textContent = "Ring teeth";
+    } else {
+      teeth.min = "6"; teeth.max = "240";
+      if (name) name.textContent = "Teeth";
+    }
+    const quotient = $("quotient-row");
+    if (quotient) quotient.hidden = !worm;
+    $("bore-shape").disabled = solidBlank;
+    if (solidBlank) {
+      $("bore").disabled = true;
+      $("side-row").hidden = true;
+    }
+    const helix = helical ? Number($("helix").value) || 0 : 0;
+    document.querySelectorAll("[data-helix]").forEach((button) => {
+      const on = (form === "spur" && Number(button.dataset.helix) === 0) || (helical && Number(button.dataset.helix) === helix);
+      button.setAttribute("aria-pressed", on ? "true" : "false");
+    });
+    const unit = $("face-unit");
+    if (unit) {
+      unit.textContent = form === "bevel"
+        ? "mm along the tooth"
+        : form === "rack"
+          ? "mm, the bar thickness"
+          : form === "worm"
+            ? "mm, the screw length"
+            : "mm, the STL thickness";
+    }
+    const labels = {
+      rack: ["Save rack STL", "Save pinion STL"],
+      internal: ["Save ring STL", "Save pinion STL"],
+      worm: ["Save worm STL", "Save wheel STL"]
+    };
+    const pair = labels[form] || ["Save gear STL", "Save mate STL"];
+    $("save-a").textContent = pair[0];
+    $("save-b").textContent = pair[1];
+  }
+
+  function applyPreset(name) {
+    const set = (id, value) => { $(id).value = value; };
+    setHole("a", "round");
+    setHole("b", "round");
+    set("helix", 0);
+    $("form").value = "spur";
+    $("hand").value = "right";
+    $("driver").value = "a";
+    if (name === "single") {
+      set("teeth", 30); set("module", 2); set("angle", 20); set("shift", 0);
+      set("backlash", 0); set("face", 8); set("bore", 8); $("pair").checked = false;
+    } else if (name === "two") {
+      set("teeth", 20); set("module", 2); set("angle", 20); set("shift", 0);
+      set("backlash", 0.1); set("face", 8); set("bore", 8);
+      $("pair").checked = true;
+      set("teeth-b", 40); set("shift-b", 0); set("bore-b", 8);
+    } else if (name === "pair") {
+      set("teeth", 16); set("module", 1.5); set("angle", 20); set("shift", 0.45);
+      set("backlash", 0.12); set("face", 8); set("bore", 5);
+      $("pair").checked = true;
+      set("teeth-b", 48); set("shift-b", 0); set("bore-b", 8);
+    } else if (name === "four") {
+      set("teeth", 12); set("module", 1.5); set("angle", 20); set("shift", 0.5);
+      set("backlash", 0.15); set("face", 8); set("bore", 5);
+      $("pair").checked = true;
+      set("teeth-b", 48); set("shift-b", 0); set("bore-b", 8);
+    } else if (name === "even") {
+      set("teeth", 24); set("module", 2); set("angle", 20); set("shift", 0);
+      set("backlash", 0.1); set("face", 6); set("bore", 8);
+      $("pair").checked = true;
+      set("teeth-b", 24); set("shift-b", 0); set("bore-b", 8);
+    } else if (name === "helical") {
+      set("teeth", 20); set("module", 2); set("angle", 20); set("shift", 0);
+      set("backlash", 0.12); set("face", 20); set("bore", 8);
+      set("helix", 20); $("hand").value = "right"; $("form").value = "helical";
+      $("pair").checked = true;
+      set("teeth-b", 40); set("shift-b", 0); set("bore-b", 8);
+    } else if (name === "herringbone") {
+      set("teeth", 20); set("module", 1.5); set("angle", 20); set("shift", 0);
+      set("backlash", 0.12); set("face", 28); set("bore", 6);
+      set("helix", 20); $("hand").value = "right"; $("form").value = "herringbone";
+      $("pair").checked = true;
+      set("teeth-b", 40); set("shift-b", 0); set("bore-b", 8);
+    } else if (name === "bevel") {
+      set("teeth", 20); set("module", 2); set("angle", 20); set("shift", 0);
+      set("backlash", 0.15); set("face", 12); set("bore", 6);
+      $("form").value = "bevel";
+      $("pair").checked = true;
+      set("teeth-b", 40); set("shift-b", 0); set("bore-b", 8);
+    } else if (name === "rack") {
+      set("teeth", 10); set("module", 2); set("angle", 20); set("shift", 0);
+      set("backlash", 0.12); set("face", 10); set("bore", 0);
+      $("form").value = "rack";
+      $("pair").checked = true;
+      $("driver").value = "b";
+      set("teeth-b", 20); set("shift-b", 0); set("bore-b", 8);
+    } else if (name === "internal") {
+      set("teeth", 60); set("module", 1.5); set("angle", 20); set("shift", 0);
+      set("backlash", 0.12); set("face", 8); set("bore", 0);
+      $("form").value = "internal";
+      $("pair").checked = true;
+      $("driver").value = "b";
+      set("teeth-b", 20); set("shift-b", 0); set("bore-b", 6);
+    } else if (name === "worm") {
+      set("teeth", 1); set("module", 2); set("angle", 20); set("shift", 0);
+      set("backlash", 0.15); set("face", 24); set("bore", 5);
+      set("quotient", 10);
+      $("form").value = "worm";
+      $("hand").value = "right";
+      $("pair").checked = true;
+      set("teeth-b", 30); set("shift-b", 0); set("bore-b", 8);
+    }
+    writingDp = true;
+    $("dp").value = fmt(25.4 / Number($("module").value));
+    writingDp = false;
+    view.x = 0; view.y = 0; view.k = 1;
+    render();
+  }
+
+  function resize() {
+    const rect = canvas.parentElement.getBoundingClientRect();
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const w = Math.max(1, Math.floor(rect.width * dpr));
+    const h = Math.max(1, Math.floor(rect.height * dpr));
+    canvas.width = w;
+    canvas.height = h;
+    const solid = $("solid");
+    if (solid) {
+      solid.width = w;
+      solid.height = h;
+    }
+    if (model && model.gear.ok) {
+      if (viewMode === "solid") drawSolid();
+      else draw();
+    }
+  }
+
+  document.querySelectorAll("input, select").forEach((el) => {
+    el.addEventListener("input", () => {
+      if (el.id === "module" && !writingDp) {
+        writingDp = true;
+        const m = Number(el.value);
+        if (m > 0) $("dp").value = fmt(25.4 / m);
+        writingDp = false;
+      }
+      if (el.id === "dp" && !writingDp) {
+        const dp = Number(el.value);
+        if (dp > 0) {
+          writingDp = true;
+          $("module").value = fmt(25.4 / dp);
+          writingDp = false;
+        }
+      }
+      if (el.id === "form") {
+        const chosen = el.value;
+        if ((chosen === "helical" || chosen === "herringbone") && !(Number($("helix").value) > 0)) $("helix").value = 20;
+        if (chosen === "worm" && Number($("teeth").value) > 6) $("teeth").value = 1;
+        if (chosen !== "worm" && chosen !== "rack" && Number($("teeth").value) < 6) $("teeth").value = 20;
+        if (chosen === "internal" && Number($("teeth").value) < 36) $("teeth").value = 60;
+      }
+      render();
+    });
+  });
+  function applyTheme(name) {
+    const theme = name === "dark" || name === "summer" || name === "autumn" ? name : "paper";
+    if (theme === "paper") delete document.documentElement.dataset.theme;
+    else document.documentElement.dataset.theme = theme;
+    document.querySelectorAll(".views button").forEach((button) => {
+      button.setAttribute("aria-pressed", button.dataset.theme === theme ? "true" : "false");
+    });
+    try { localStorage.setItem("gyg-theme", theme); } catch (e) {}
+    if (model) render();
+  }
+
+  document.querySelectorAll(".presets button").forEach((button) => {
+    button.addEventListener("click", () => applyPreset(button.dataset.preset));
+  });
+  document.querySelectorAll("[data-sides]").forEach((button) => {
+    button.addEventListener("click", () => {
+      setHole(button.dataset.for || "a", "poly", button.dataset.sides);
+      render();
+    });
+  });
+  const floater = $("floater");
+  function placeTip(host) {
+    const bubble = host.querySelector(".bubble");
+    if (!bubble) return;
+    floater.innerHTML = bubble.innerHTML;
+    floater.hidden = false;
+    const rect = host.getBoundingClientRect();
+    const width = floater.offsetWidth;
+    const height = floater.offsetHeight;
+    let left = rect.left;
+    if (left + width > window.innerWidth - 8) left = window.innerWidth - width - 8;
+    if (left < 8) left = 8;
+    let top = rect.bottom + 6;
+    if (top + height > window.innerHeight - 8) top = Math.max(8, rect.top - height - 6);
+    floater.style.left = left + "px";
+    floater.style.top = top + "px";
+  }
+  document.querySelectorAll(".ask").forEach((el) => {
+    const show = () => placeTip(el);
+    const hide = (event) => {
+      if (event.type === "focusout" && el.contains(event.relatedTarget)) return;
+      floater.hidden = true;
+    };
+    el.addEventListener("mouseenter", show);
+    el.addEventListener("mouseleave", hide);
+    el.addEventListener("focusin", show);
+    el.addEventListener("focusout", hide);
+  });
+  document.querySelectorAll(".views button").forEach((button) => {
+    button.addEventListener("click", () => applyTheme(button.dataset.theme));
+  });
+  applyTheme(document.documentElement.dataset.theme || "paper");
+  document.querySelectorAll("[data-helix]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const value = Number(button.dataset.helix);
+      $("helix").value = value;
+      if (value === 0) $("form").value = "spur";
+      else if ($("form").value !== "helical" && $("form").value !== "herringbone") $("form").value = "helical";
+      render();
+    });
+  });
+  document.querySelectorAll("[data-angle]").forEach((button) => {
+    button.addEventListener("click", () => {
+      $("angle").value = button.dataset.angle;
+      render();
+    });
+  });
+  $("save-a").addEventListener("click", () => { if (model && model.gear.ok) saveGear(model.gear); });
+  $("save-b").addEventListener("click", () => { if (model && model.mate && model.mate.ok) saveGear(model.mate); });
+
+  const solidCam = { yaw: 0.7, pitch: 0.52, distScale: 1, snap: "" };
+  const solidView = { gl: null, program: null, loc: null, parts: [], bounds: null, failed: false };
+
+  function rotZ(p, a) {
+    const c = Math.cos(a), s = Math.sin(a);
+    return [p[0] * c - p[1] * s, p[0] * s + p[1] * c, p[2]];
+  }
+  function rotY(p, a) {
+    const c = Math.cos(a), s = Math.sin(a);
+    return [p[0] * c + p[2] * s, p[1], -p[0] * s + p[2] * c];
+  }
+  function vsub(a, b) { return [a[0] - b[0], a[1] - b[1], a[2] - b[2]]; }
+  function vdot(a, b) { return a[0] * b[0] + a[1] * b[1] + a[2] * b[2]; }
+  function vcross(a, b) {
+    return [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
+  }
+  function vnorm(a) {
+    const len = Math.hypot(a[0], a[1], a[2]) || 1;
+    return [a[0] / len, a[1] / len, a[2] / len];
+  }
+  function mul4(a, b) {
+    const o = new Float32Array(16);
+    for (let c = 0; c < 4; c++) {
+      for (let r = 0; r < 4; r++) {
+        let s = 0;
+        for (let k = 0; k < 4; k++) s += a[k * 4 + r] * b[c * 4 + k];
+        o[c * 4 + r] = s;
+      }
+    }
+    return o;
+  }
+  function perspective(fov, aspect, near, far) {
+    const f = 1 / Math.tan(fov / 2);
+    const nf = 1 / (near - far);
+    return new Float32Array([
+      f / aspect, 0, 0, 0,
+      0, f, 0, 0,
+      0, 0, (far + near) * nf, -1,
+      0, 0, 2 * far * near * nf, 0
+    ]);
+  }
+  function lookAt(eye, target) {
+    const f = vnorm(vsub(target, eye));
+    let up = [0, 0, 1];
+    let s = vcross(f, up);
+    if (Math.hypot(s[0], s[1], s[2]) < 1e-4) {
+      up = [0, 1, 0];
+      s = vcross(f, up);
+    }
+    s = vnorm(s);
+    const u = vcross(s, f);
+    return new Float32Array([
+      s[0], u[0], -f[0], 0,
+      s[1], u[1], -f[1], 0,
+      s[2], u[2], -f[2], 0,
+      -vdot(s, eye), -vdot(u, eye), vdot(f, eye), 1
+    ]);
+  }
+  function eyeOf(target, dist, yaw, pitch) {
+    const cp = Math.cos(pitch), sp = Math.sin(pitch);
+    return [
+      target[0] + dist * cp * Math.sin(yaw),
+      target[1] - dist * cp * Math.cos(yaw),
+      target[2] + dist * sp
+    ];
+  }
+  function cssRgb(value) {
+    const probe = document.createElement("canvas").getContext("2d");
+    probe.fillStyle = "#000000";
+    probe.fillStyle = value;
+    const out = probe.fillStyle;
+    if (out.charAt(0) === "#") {
+      return [
+        parseInt(out.slice(1, 3), 16) / 255,
+        parseInt(out.slice(3, 5), 16) / 255,
+        parseInt(out.slice(5, 7), 16) / 255
+      ];
+    }
+    const m = String(out).match(/[\d.]+/g) || ["0", "0", "0"];
+    return [Number(m[0]) / 255, Number(m[1]) / 255, Number(m[2]) / 255];
+  }
+  function mixRgb(a, b, t) {
+    return [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
+  }
+  function markMode() {
+    document.querySelectorAll("[data-viewmode]").forEach((button) => {
+      button.setAttribute("aria-pressed", button.dataset.viewmode === viewMode ? "true" : "false");
+    });
+  }
+  function markCam(name) {
+    solidCam.snap = name || "";
+    document.querySelectorAll("[data-cam]").forEach((button) => {
+      button.setAttribute("aria-pressed", button.dataset.cam === solidCam.snap ? "true" : "false");
+    });
+  }
+  function placeParts() {
+    const gear = model.gear;
+    const mate = model.mate && model.mate.ok ? model.mate : null;
+    const parts = [{ gear, map: (p) => p.slice() }];
+    if (!mate) return parts;
+    if (gear.form === "bevel") {
+      const L1 = gear.rp / Math.tan(gear.cone * Math.PI / 180);
+      const L2 = mate.rp / Math.tan(mate.cone * Math.PI / 180);
+      const spin = Math.PI / mate.teeth;
+      parts[0] = { gear, map: (p) => [p[0], p[1], p[2] - L1] };
+      parts.push({
+        gear: mate,
+        map: (p) => rotY(rotZ([p[0], p[1], p[2] - L2], spin), Math.PI / 2)
+      });
+      return parts;
+    }
+    if (gear.form === "worm") {
+      const wheelFace = mate.face;
+      parts[0] = {
+        gear,
+        map: (p) => {
+          const laid = rotY(p, Math.PI / 2);
+          return [laid[0] - gear.face / 2, laid[1] + model.center, laid[2] + wheelFace / 2];
+        }
+      };
+      parts.push({ gear: mate, map: (p) => p.slice() });
+      return parts;
+    }
+    if (gear.form === "rack") {
+      parts.push({
+        gear: mate,
+        map: (p) => {
+          const r = rotZ(p, model.rot2);
+          return [r[0] + model.pinionX, r[1] + model.center, r[2]];
+        }
+      });
+      return parts;
+    }
+    if (gear.form === "internal") {
+      const spin = model.ringRot || 0;
+      parts[0] = { gear, map: (p) => rotZ(p, spin) };
+      parts.push({ gear: mate, map: (p) => [p[0] + model.center, p[1], p[2]] });
+      return parts;
+    }
+    parts.push({
+      gear: mate,
+      map: (p) => {
+        const r = rotZ(p, model.rot2);
+        return [r[0] + model.center, r[1], r[2]];
+      }
+    });
+    return parts;
+  }
+  function initSolid() {
+    if (solidView.gl) return true;
+    if (solidView.failed) return false;
+    const gl = $("solid").getContext("webgl", { antialias: true, alpha: false });
+    if (!gl) {
+      solidView.failed = true;
+      return false;
+    }
+    const vsSrc = "attribute vec3 aPos;attribute vec3 aNrm;uniform mat4 uMvp;uniform mat4 uView;varying vec3 vN;void main(){vN=mat3(uView)*aNrm;gl_Position=uMvp*vec4(aPos,1.0);}";
+    const fsSrc = "precision mediump float;varying vec3 vN;uniform vec3 uColor;void main(){vec3 n=normalize(vN);float key=max(dot(n,normalize(vec3(-0.28,0.74,0.61))),0.0);float bounce=max(dot(n,normalize(vec3(0.62,-0.28,0.42))),0.0);float shade=clamp(0.40+0.72*key+0.18*bounce,0.0,1.2);gl_FragColor=vec4(uColor*shade,1.0);}";
+    function compile(type, src) {
+      const shader = gl.createShader(type);
+      gl.shaderSource(shader, src);
+      gl.compileShader(shader);
+      return shader;
+    }
+    const vs = compile(gl.VERTEX_SHADER, vsSrc);
+    const fs = compile(gl.FRAGMENT_SHADER, fsSrc);
+    const program = gl.createProgram();
+    gl.attachShader(program, vs);
+    gl.attachShader(program, fs);
+    gl.bindAttribLocation(program, 0, "aPos");
+    gl.bindAttribLocation(program, 1, "aNrm");
+    gl.linkProgram(program);
+    if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
+      solidView.failed = true;
+      return false;
+    }
+    solidView.gl = gl;
+    solidView.program = program;
+    solidView.loc = {
+      pos: 0,
+      nrm: 1,
+      mvp: gl.getUniformLocation(program, "uMvp"),
+      view: gl.getUniformLocation(program, "uView"),
+      color: gl.getUniformLocation(program, "uColor")
+    };
+    return true;
+  }
+  function refreshSolid() {
+    if (!model || !model.gear.ok) return;
+    if (!initSolid()) {
+      viewMode = "draw";
+      $("solid").hidden = true;
+      markMode();
+      $("hint").textContent = "This display can't turn the solid. The drawing is still here.";
+      draw();
+      return;
+    }
+    const gl = solidView.gl;
+    solidView.parts.forEach((part) => {
+      gl.deleteBuffer(part.pos);
+      gl.deleteBuffer(part.nrm);
+    });
+    solidView.parts = [];
+    const ink = colors();
+    const body = [mixRgb(cssRgb(ink.fill), cssRgb(ink.ink), 0.38), mixRgb(cssRgb(ink.fillB), cssRgb(ink.ink), 0.28)];
+    const min = [1e9, 1e9, 1e9];
+    const max = [-1e9, -1e9, -1e9];
+    placeParts().forEach((part, index) => {
+      const tris = extrude(part.gear);
+      const pos = new Float32Array(tris.length * 9);
+      const nrm = new Float32Array(tris.length * 9);
+      let o = 0;
+      for (let i = 0; i < tris.length; i++) {
+        const a = part.map(tris[i][0]);
+        const b = part.map(tris[i][1]);
+        const c = part.map(tris[i][2]);
+        const ab = vsub(b, a);
+        const ac = vsub(c, a);
+        const n = vnorm(vcross(ab, ac));
+        [a, b, c].forEach((p) => {
+          pos[o] = p[0]; pos[o + 1] = p[1]; pos[o + 2] = p[2];
+          nrm[o] = n[0]; nrm[o + 1] = n[1]; nrm[o + 2] = n[2];
+          o += 3;
+          if (p[0] < min[0]) min[0] = p[0];
+          if (p[1] < min[1]) min[1] = p[1];
+          if (p[2] < min[2]) min[2] = p[2];
+          if (p[0] > max[0]) max[0] = p[0];
+          if (p[1] > max[1]) max[1] = p[1];
+          if (p[2] > max[2]) max[2] = p[2];
+        });
+      }
+      const posBuf = gl.createBuffer();
+      gl.bindBuffer(gl.ARRAY_BUFFER, posBuf);
+      gl.bufferData(gl.ARRAY_BUFFER, pos, gl.STATIC_DRAW);
+      const nrmBuf = gl.createBuffer();
+      gl.bindBuffer(gl.ARRAY_BUFFER, nrmBuf);
+      gl.bufferData(gl.ARRAY_BUFFER, nrm, gl.STATIC_DRAW);
+      solidView.parts.push({ pos: posBuf, nrm: nrmBuf, count: tris.length * 3, color: body[index] || body[0] });
+    });
+    const nextRadius = Math.hypot(max[0] - min[0], max[1] - min[1], max[2] - min[2]);
+    const prev = solidView.bounds;
+    if (prev) {
+      const prevRadius = Math.hypot(prev.max[0] - prev.min[0], prev.max[1] - prev.min[1], prev.max[2] - prev.min[2]);
+      if (nextRadius > prevRadius * 1.2 || nextRadius < prevRadius * 0.8) solidCam.distScale = 1;
+    }
+    solidView.bounds = { min, max };
+    drawSolid();
+  }
+  function drawSolid() {
+    const gl = solidView.gl;
+    if (!gl || !solidView.bounds || !solidView.parts.length) return;
+    const rect = canvas.parentElement.getBoundingClientRect();
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const w = Math.max(1, Math.floor(rect.width * dpr));
+    const h = Math.max(1, Math.floor(rect.height * dpr));
+    const solid = $("solid");
+    if (solid.width !== w || solid.height !== h) {
+      solid.width = w;
+      solid.height = h;
+    }
+    gl.viewport(0, 0, solid.width, solid.height);
+    const sheet = cssRgb(colors().sheet);
+    gl.clearColor(sheet[0], sheet[1], sheet[2], 1);
+    gl.enable(gl.DEPTH_TEST);
+    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+    const b = solidView.bounds;
+    const target = [(b.min[0] + b.max[0]) / 2, (b.min[1] + b.max[1]) / 2, (b.min[2] + b.max[2]) / 2];
+    const radius = Math.max(0.5, Math.hypot(b.max[0] - b.min[0], b.max[1] - b.min[1], b.max[2] - b.min[2]) / 2);
+    const aspect = solid.width / solid.height;
+    const fov = 0.62;
+    const half = Math.min(fov / 2, Math.atan(Math.tan(fov / 2) * aspect));
+    const dist = (radius / Math.sin(half)) * 1.28 * solidCam.distScale;
+    const eye = eyeOf(target, dist, solidCam.yaw, solidCam.pitch);
+    const viewM = lookAt(eye, target);
+    const proj = perspective(fov, aspect, Math.max(0.05, dist * 0.01), dist + radius * 8);
+    gl.useProgram(solidView.program);
+    gl.uniformMatrix4fv(solidView.loc.mvp, false, mul4(proj, viewM));
+    gl.uniformMatrix4fv(solidView.loc.view, false, viewM);
+    solidView.parts.forEach((part) => {
+      gl.uniform3fv(solidView.loc.color, part.color);
+      gl.bindBuffer(gl.ARRAY_BUFFER, part.pos);
+      gl.enableVertexAttribArray(solidView.loc.pos);
+      gl.vertexAttribPointer(solidView.loc.pos, 3, gl.FLOAT, false, 0, 0);
+      gl.bindBuffer(gl.ARRAY_BUFFER, part.nrm);
+      gl.enableVertexAttribArray(solidView.loc.nrm);
+      gl.vertexAttribPointer(solidView.loc.nrm, 3, gl.FLOAT, false, 0, 0);
+      gl.drawArrays(gl.TRIANGLES, 0, part.count);
+    });
+  }
+  function fitDrawing() {
+    view.x = 0;
+    view.y = 0;
+    view.k = 1;
+    draw();
+  }
+  function zoomDrawing(factor) {
+    if (!fit) return;
+    const rect = canvas.getBoundingClientRect();
+    const mx = rect.width / 2;
+    const my = rect.height / 2;
+    const world = screenToWorld(mx, my);
+    view.k = clamp(view.k * factor, 0.35, 28);
+    const s = fit.scale * view.k;
+    view.x = mx - fit.ox * view.k - world[0] * s;
+    view.y = my - fit.oy * view.k + world[1] * s;
+    draw();
+  }
+  function setViewMode(mode) {
+    const next = mode === "solid" ? "solid" : "draw";
+    if (next === viewMode) return;
+    viewMode = next;
+    $("solid").hidden = viewMode !== "solid";
+    markMode();
+    if (viewMode === "solid") {
+      solidCam.yaw = 0.7;
+      solidCam.pitch = 0.52;
+      solidCam.distScale = 1;
+    }
+    markCam("");
+    render();
+  }
+  function snapCam(name) {
+    if (viewMode !== "solid" && name === "top") {
+      markCam("top");
+      fitDrawing();
+      return;
+    }
+    if (name === "top") { solidCam.pitch = Math.PI / 2; solidCam.yaw = 0; }
+    else if (name === "bottom") { solidCam.pitch = -Math.PI / 2; solidCam.yaw = 0; }
+    else if (name === "front") { solidCam.pitch = 0; solidCam.yaw = 0; }
+    else if (name === "side") { solidCam.pitch = 0; solidCam.yaw = Math.PI / 2; }
+    solidCam.distScale = 1;
+    markCam(name);
+    if (viewMode !== "solid") {
+      viewMode = "solid";
+      $("solid").hidden = false;
+      markMode();
+      render();
+    } else drawSolid();
+  }
+  function onZoom(which) {
+    if (viewMode === "solid") {
+      if (which === "in") solidCam.distScale = clamp(solidCam.distScale / 1.25, 0.22, 8);
+      else if (which === "out") solidCam.distScale = clamp(solidCam.distScale * 1.25, 0.22, 8);
+      else solidCam.distScale = 1;
+      drawSolid();
+      return;
+    }
+    if (which === "fit") fitDrawing();
+    else zoomDrawing(which === "in" ? 1.25 : 1 / 1.25);
+  }
+
+  canvas.addEventListener("wheel", (event) => {
+    if (!fit) return;
+    event.preventDefault();
+    const rect = canvas.getBoundingClientRect();
+    const mx = event.clientX - rect.left;
+    const my = event.clientY - rect.top;
+    const [wx, wy] = screenToWorld(mx, my);
+    const factor = event.deltaY < 0 ? 1.1 : 1 / 1.1;
+    view.k = clamp(view.k * factor, 0.35, 28);
+    const s = fit.scale * view.k;
+    view.x = mx - fit.ox * view.k - wx * s;
+    view.y = my - fit.oy * view.k + wy * s;
+    draw();
+  }, { passive: false });
+
+  let drag = null;
+  canvas.addEventListener("pointerdown", (event) => {
+    canvas.setPointerCapture(event.pointerId);
+    drag = { x: event.clientX, y: event.clientY, vx: view.x, vy: view.y };
+  });
+  canvas.addEventListener("pointermove", (event) => {
+    if (!drag) return;
+    view.x = drag.vx + (event.clientX - drag.x);
+    view.y = drag.vy + (event.clientY - drag.y);
+    draw();
+  });
+  canvas.addEventListener("pointerup", () => { drag = null; });
+  canvas.addEventListener("pointercancel", () => { drag = null; });
+  canvas.addEventListener("dblclick", () => {
+    view.x = 0; view.y = 0; view.k = 1;
+    draw();
+  });
+
+  document.querySelectorAll("[data-viewmode]").forEach((button) => {
+    button.addEventListener("click", () => setViewMode(button.dataset.viewmode));
+  });
+  document.querySelectorAll("[data-cam]").forEach((button) => {
+    button.addEventListener("click", () => snapCam(button.dataset.cam));
+  });
+  document.querySelectorAll("[data-zoom]").forEach((button) => {
+    button.addEventListener("click", () => onZoom(button.dataset.zoom));
+  });
+
+  const solidCanvas = $("solid");
+  solidCanvas.addEventListener("wheel", (event) => {
+    event.preventDefault();
+    solidCam.distScale = clamp(solidCam.distScale * (event.deltaY > 0 ? 1.1 : 1 / 1.1), 0.22, 8);
+    drawSolid();
+  }, { passive: false });
+  let turn = null;
+  solidCanvas.addEventListener("pointerdown", (event) => {
+    try { solidCanvas.setPointerCapture(event.pointerId); } catch (e) {}
+    turn = { x: event.clientX, y: event.clientY, yaw: solidCam.yaw, pitch: solidCam.pitch };
+  });
+  solidCanvas.addEventListener("pointermove", (event) => {
+    if (!turn) return;
+    solidCam.yaw = turn.yaw - (event.clientX - turn.x) * 0.008;
+    solidCam.pitch = clamp(turn.pitch + (event.clientY - turn.y) * 0.008, -1.45, 1.45);
+    markCam("");
+    drawSolid();
+  });
+  solidCanvas.addEventListener("pointerup", () => { turn = null; });
+  solidCanvas.addEventListener("pointercancel", () => { turn = null; });
+  solidCanvas.addEventListener("dblclick", () => {
+    solidCam.distScale = 1;
+    drawSolid();
+  });
+
+  window.addEventListener("resize", resize);
+  resize();
+  render();
+
+  window.GYG = { build, read, extrude, audit, makeGear };
+})();
+</script>
+</body>
+</html>

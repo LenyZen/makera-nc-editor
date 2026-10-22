@@ -1,0 +1,382 @@
+(function (root) {
+  const NS = root.STL2SVG || (root.STL2SVG = {});
+
+  const $ = (id) => document.getElementById(id);
+  const state = {
+    raw: null,
+    shown: null,
+    name: "cutting-pattern",
+    basis: null,
+    sliceT: 0.5,
+    pattern: null
+  };
+
+  function setStatus(text, kind) {
+    const node = $("status");
+    node.textContent = text;
+    node.className = "status" + (kind ? " " + kind : "");
+  }
+
+  function readNumbers() {
+    return {
+      rx: Number($("rx").value) || 0,
+      ry: Number($("ry").value) || 0,
+      rz: Number($("rz").value) || 0,
+      scale: Math.max(0.001, Number($("scale").value) || 1),
+      tolerance: Math.max(0, Number($("tolerance").value) || 0)
+    };
+  }
+
+  function heightNow() {
+    if (!state.shown || !state.basis) return 0;
+    const range = NS.geom.rangeAlong(state.shown, state.basis.normal);
+    const span = range.max - range.min;
+    return { range, span, height: range.min + state.sliceT * span };
+  }
+
+  function applyTransform() {
+    if (!state.raw) return;
+    const n = readNumbers();
+    state.shown = NS.geom.transform(state.raw.positions, n.rx, n.ry, n.rz, n.scale);
+    view3d.setMesh(state.shown);
+    updatePlane();
+    const box = NS.geom.boundsOf(state.shown);
+    $("size").textContent = "Model " +
+      (box.max.x - box.min.x).toFixed(2) + " × " +
+      (box.max.y - box.min.y).toFixed(2) + " × " +
+      (box.max.z - box.min.z).toFixed(2) + " mm, " +
+      state.raw.triangles.toLocaleString() + " triangles";
+  }
+
+  function updatePlane() {
+    if (!state.shown || !state.basis) return;
+    const info = heightNow();
+    $("slice").value = String(Math.round(state.sliceT * 1000));
+    $("slice-mm").value = info.height.toFixed(3);
+    $("thickness").textContent = "Along this view the solid is " + info.span.toFixed(3) + " mm thick. A 1.25 mm ornament is cut through the middle.";
+    view3d.setPlane(state.basis, info.height);
+  }
+
+  function useMesh(parsed, name) {
+    state.raw = parsed;
+    state.name = name.replace(/\.stl$/i, "") || "cutting-pattern";
+    state.pattern = null;
+    state.sliceT = 0.5;
+    $("export").disabled = true;
+    view2d.setPattern(null);
+    $("report").textContent = "";
+    applyTransform();
+    setStatus("Solid loaded. Set the view, then generate the cutting pattern.", "ok");
+  }
+
+  function loadBuffer(buffer, name) {
+    try {
+      const parsed = NS.parseSTL(buffer);
+      if (!parsed.triangles) throw new Error("The STL has no triangles.");
+      useMesh(parsed, name);
+    } catch (error) {
+      setStatus(error.message || "Could not read that STL.", "bad");
+    }
+  }
+
+  function describe(pattern) {
+    const outlines = pattern.closed.filter((c) => c.role === "outline").length;
+    const holes = pattern.closed.filter((c) => c.role === "hole").length;
+    const loose = pattern.closed.filter((c) => c.role === "loose").length;
+    const lines = [];
+    const info = heightNow();
+    lines.push(
+      pattern.bounds.width.toFixed(2) + " × " + pattern.bounds.height.toFixed(2) +
+      " mm. Slice at " + info.height.toFixed(3) + " mm, inside a span of " + info.span.toFixed(3) + " mm."
+    );
+    if (!pattern.closed.length) {
+      lines.push("No closed cut at this height. Move the red plane into the solid and generate again.");
+    } else {
+      lines.push(
+        pattern.closed.length + " closed contours: " + outlines + " outside, " +
+        holes + (holes === 1 ? " opening, " : " openings, ") +
+        loose + (loose === 1 ? " loose piece." : " loose pieces.")
+      );
+    }
+    if (loose) {
+      lines.push("A loose piece sits inside a cut. Once that opening is machined, the piece is no longer held.");
+    }
+    if (pattern.open.length) {
+      lines.push(pattern.open.length + (pattern.open.length === 1 ? " open contour is" : " open contours are") + " drawn dashed. Open lines are left out of the SVG.");
+    }
+    if (pattern.duplicates) {
+      lines.push("Removed " + pattern.duplicates + " duplicate line" + (pattern.duplicates === 1 ? "" : "s") + ".");
+    }
+    if (pattern.overlaps) {
+      lines.push(pattern.overlaps + " overlapping line pairs. Those places can be cut twice. Check the preview.");
+    }
+    if (pattern.overlapSkipped) lines.push("Overlap check was skipped on this very large slice.");
+    if (pattern.repaired) {
+      lines.push("Joined " + pattern.repaired + " gap" + (pattern.repaired === 1 ? "" : "s") + ". Compare the drawing with the solid before you cut.");
+    } else if (pattern.gaps.length) {
+      lines.push(pattern.gaps.length + " gap" + (pattern.gaps.length === 1 ? "" : "s") + " within " + pattern.tolerance.toFixed(2) + " mm. Repair is waiting for an answer.");
+    }
+    if (pattern.nudged) lines.push("The slice moved just inside a flat face, so the cut comes from the walls.");
+    return lines.join(" ");
+  }
+
+  function showPattern(pattern) {
+    state.pattern = pattern;
+    NS.current = pattern;
+    view2d.setPattern(pattern);
+    const text = describe(pattern);
+    $("report").textContent = text;
+    const ready = pattern.closed.length > 0 && !pattern.open.length && !pattern.gaps.length;
+    $("export").disabled = pattern.closed.length === 0;
+    setStatus(ready ? "Closed cuts. Ready to export." : text, ready ? "ok" : "bad");
+    if (pattern.gaps.length && !pattern.repaired) openRepair(pattern);
+  }
+
+  function generate() {
+    if (!state.shown) {
+      setStatus("Load an STL first.", "bad");
+      return;
+    }
+    const info = heightNow();
+    const cut = NS.sliceMesh(state.shown, state.basis, info.height);
+    const pattern = NS.contours.analyze(cut.segments, readNumbers().tolerance);
+    pattern.nudged = cut.nudged;
+    showPattern(pattern);
+  }
+
+  function openRepair(pattern) {
+    const list = $("warn-list");
+    list.replaceChildren();
+    pattern.gaps.forEach((gap) => {
+      const item = document.createElement("li");
+      item.textContent = gap.distance.toFixed(3) + " mm";
+      list.appendChild(item);
+    });
+    $("warn-text").textContent = "These gaps are within " + pattern.tolerance.toFixed(2) +
+      " mm. Joining them closes the outline. If a gap is a real slot in the ornament, joining it removes that opening.";
+    $("warn").hidden = false;
+  }
+
+  function download() {
+    const pattern = state.pattern;
+    if (!pattern || !pattern.closed.length) return;
+    const svg = NS.buildSVG(pattern, {
+      title: state.name,
+      note: "Slice " + heightNow().height.toFixed(3) + " mm."
+    });
+    NS.currentSvg = svg;
+    const blob = new Blob([svg], { type: "image/svg+xml" });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = state.name + ".svg";
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(link.href), 1000);
+    setStatus("Saved " + state.name + ".svg. The width on the file is " + pattern.bounds.width.toFixed(2) + " mm.", "ok");
+  }
+
+  function askExport() {
+    const pattern = state.pattern;
+    if (!pattern || !pattern.closed.length) return;
+    if (pattern.open.length || pattern.gaps.length) {
+      $("export-text").textContent = pattern.open.length
+        ? pattern.open.length + " open contour" + (pattern.open.length === 1 ? "" : "s") + " will be left out. The file keeps the " + pattern.closed.length + " closed cuts."
+        : "There are still gaps within the repair tolerance. The file keeps the closed cuts only.";
+      $("export-warn").hidden = false;
+      return;
+    }
+    download();
+  }
+
+  const view3d = NS.preview3d.mount($("view3d"));
+  const view2d = NS.preview2d.mount($("view2d"));
+  state.basis = NS.geom.preset("top");
+
+  $("file").addEventListener("change", () => {
+    const file = $("file").files && $("file").files[0];
+    if (!file) return;
+    setStatus("Reading the STL…", "");
+    const reader = new FileReader();
+    reader.onload = () => loadBuffer(reader.result, file.name);
+    reader.onerror = () => setStatus("Could not read that file.", "bad");
+    reader.readAsArrayBuffer(file);
+  });
+  $("load").addEventListener("click", () => $("file").click());
+  $("sample").addEventListener("click", () => {
+    const sample = NS.sampleOrnament();
+    $("sample-note").hidden = false;
+    $("sample-note").textContent = sample.note;
+    state.basis = NS.geom.preset("top");
+    useMesh(sample, sample.name);
+  });
+
+  ["rx", "ry", "rz", "scale"].forEach((id) => {
+    $(id).addEventListener("change", applyTransform);
+  });
+  $("reset").addEventListener("click", () => {
+    $("rx").value = "0";
+    $("ry").value = "0";
+    $("rz").value = "0";
+    $("scale").value = "1";
+    state.sliceT = 0.5;
+    applyTransform();
+  });
+
+  $("slice").addEventListener("input", () => {
+    state.sliceT = Number($("slice").value) / 1000;
+    updatePlane();
+  });
+  $("slice-mm").addEventListener("change", () => {
+    const info = heightNow();
+    const span = info.span || 1;
+    const value = Number($("slice-mm").value);
+    state.sliceT = Math.max(0, Math.min(1, (value - info.range.min) / span));
+    updatePlane();
+  });
+
+  function usePreset(name) {
+    state.basis = NS.geom.preset(name);
+    view3d.setView(name);
+    state.sliceT = 0.5;
+    updatePlane();
+    document.querySelectorAll("[data-view]").forEach((button) => {
+      button.setAttribute("aria-pressed", button.dataset.view === name ? "true" : "false");
+    });
+  }
+  document.querySelectorAll("[data-view]").forEach((button) => {
+    button.addEventListener("click", () => usePreset(button.dataset.view));
+  });
+  $("use-view").addEventListener("click", () => {
+    const cam = view3d.getCamera();
+    state.basis = NS.geom.basisFromAngles(cam.yaw, cam.pitch);
+    state.sliceT = 0.5;
+    updatePlane();
+    document.querySelectorAll("[data-view]").forEach((button) => button.setAttribute("aria-pressed", "false"));
+    setStatus("The red plane now matches the way you are looking. Generate to take the cut.", "ok");
+  });
+  $("fit3").addEventListener("click", () => view3d.fit());
+  $("fit2").addEventListener("click", () => view2d.fit());
+  $("generate").addEventListener("click", generate);
+  $("export").addEventListener("click", askExport);
+
+  $("warn-repair").addEventListener("click", () => {
+    $("warn").hidden = true;
+    if (!state.pattern) return;
+    showPattern(NS.contours.repair(state.pattern));
+  });
+  $("warn-skip").addEventListener("click", () => { $("warn").hidden = true; });
+  $("export-go").addEventListener("click", () => { $("export-warn").hidden = true; download(); });
+  $("export-cancel").addEventListener("click", () => { $("export-warn").hidden = true; });
+
+  function resize() {
+    view3d.resize();
+    view2d.resize();
+  }
+  window.addEventListener("resize", resize);
+  if (!view3d.failed && typeof ResizeObserver !== "undefined") {
+    const observer = new ResizeObserver(resize);
+    observer.observe($("view3d"));
+    observer.observe($("view2d"));
+  }
+  resize();
+
+  function cssColor(name) {
+    return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  }
+  function hexRgb(hex) {
+    const h = hex.replace("#", "");
+    const n = parseInt(h, 16);
+    if (!Number.isFinite(n)) return [0.6, 0.6, 0.6];
+    return [(n >> 16 & 255) / 255, (n >> 8 & 255) / 255, (n & 255) / 255];
+  }
+  function paintViews() {
+    view3d.setPalette({
+      paper: hexRgb(cssColor("--paper")),
+      mesh: hexRgb(cssColor("--mesh")),
+      plane: hexRgb(cssColor("--plane"))
+    });
+    view2d.setPalette({
+      cut: cssColor("--cut"),
+      keep: cssColor("--keep"),
+      ink: cssColor("--ink"),
+      loose: cssColor("--loose"),
+      open: cssColor("--open"),
+      muted: cssColor("--muted")
+    });
+  }
+  function applyTheme(name) {
+    const theme = name === "dark" || name === "summer" || name === "autumn" ? name : "paper";
+    if (theme === "paper") delete document.documentElement.dataset.theme;
+    else document.documentElement.dataset.theme = theme;
+    document.querySelectorAll("[data-theme]").forEach((button) => {
+      button.setAttribute("aria-pressed", button.dataset.theme === theme ? "true" : "false");
+    });
+    try { localStorage.setItem("gyg-theme", theme); } catch (e) {}
+    paintViews();
+  }
+  document.querySelectorAll("[data-theme]").forEach((button) => {
+    button.addEventListener("click", () => applyTheme(button.dataset.theme));
+  });
+  applyTheme(document.documentElement.dataset.theme || "paper");
+
+  const floater = $("floater");
+  let tipHost = null;
+  function hideTip() {
+    floater.hidden = true;
+    tipHost = null;
+  }
+  function placeTip(host) {
+    const bubble = host && (host.dataset.tip || "");
+    if (!bubble.trim()) return;
+    const rect = host.getBoundingClientRect();
+    if (rect.bottom < 0 || rect.top > window.innerHeight || rect.right < 0 || rect.left > window.innerWidth) {
+      hideTip();
+      return;
+    }
+    floater.textContent = bubble.trim();
+    floater.hidden = false;
+    const margin = 8;
+    const width = floater.offsetWidth;
+    const height = floater.offsetHeight;
+    let left = rect.left;
+    if (left + width > window.innerWidth - margin) left = window.innerWidth - width - margin;
+    if (left < margin) left = margin;
+    let top = rect.bottom + 6;
+    if (top + height > window.innerHeight - margin) {
+      const above = rect.top - height - 6;
+      top = above >= margin ? above : Math.max(margin, window.innerHeight - height - margin);
+    }
+    floater.style.left = left + "px";
+    floater.style.top = top + "px";
+    tipHost = host;
+  }
+  document.addEventListener("pointerover", (event) => {
+    const host = event.target.closest && event.target.closest(".ask");
+    if (host) placeTip(host);
+  });
+  document.addEventListener("pointerout", (event) => {
+    const host = event.target.closest && event.target.closest(".ask");
+    if (!host || host !== tipHost) return;
+    const next = event.relatedTarget && event.relatedTarget.closest && event.relatedTarget.closest(".ask");
+    if (next === host) return;
+    hideTip();
+  });
+  document.addEventListener("focusin", (event) => {
+    const host = event.target.closest && event.target.closest(".ask");
+    if (host) placeTip(host);
+  });
+  document.addEventListener("focusout", (event) => {
+    const host = event.target.closest && event.target.closest(".ask");
+    if (!host || host.contains(event.relatedTarget)) return;
+    hideTip();
+  });
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") hideTip();
+  });
+  window.addEventListener("scroll", () => { if (tipHost) placeTip(tipHost); }, true);
+  window.addEventListener("resize", () => { if (tipHost) placeTip(tipHost); });
+
+  if (view3d.failed) setStatus("This browser has no WebGL, so the solid preview is unavailable. Generate and export still run.", "bad");
+  else setStatus("Load an STL, or open the sample ornament. Dotted names explain themselves.", "");
+})(typeof window !== "undefined" ? window : globalThis);

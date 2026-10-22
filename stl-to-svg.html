@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>STL to SVG</title>
+  <script>
+  try {
+    var savedTheme = localStorage.getItem("gyg-theme");
+    if (savedTheme === "dark" || savedTheme === "summer" || savedTheme === "autumn") {
+      document.documentElement.dataset.theme = savedTheme;
+    }
+  } catch (e) {}
+  </script>
+  <link rel="stylesheet" href="stl-to-svg/app.css" />
+</head>
+<body>
+  <header>
+    <div class="title">
+      <h1>STL to SVG</h1>
+      <p>A solid becomes a closed cutting drawing, in millimetres, for Makera Studio. Double-click this file, next to the editor and the gear page. Nothing is installed, and nothing is sent off this computer.</p>
+    </div>
+    <nav>
+      <a href="index.html">NC editor</a>
+      <a href="giving-you-the-gears.html">Gears</a>
+      <a href="docs.html#cut-svg">How to use</a>
+      <span class="views" role="group" aria-label="Screen">
+        <span class="label">View</span>
+        <button type="button" class="ask" data-theme="paper" data-tip="The warm drawing-sheet colours." aria-pressed="true">Paper</button>
+        <button type="button" class="ask" data-theme="dark" data-tip="A dark sheet for a dim room. The cutting drawing keeps pale material on a dark ground." aria-pressed="false">Dark</button>
+        <button type="button" class="ask" data-theme="summer" data-tip="A warm yellow sheet." aria-pressed="false">Warm summer</button>
+        <button type="button" class="ask" data-theme="autumn" data-tip="A cool grey-blue sheet." aria-pressed="false">Cool autumn</button>
+      </span>
+    </nav>
+  </header>
+
+  <main>
+    <section class="stage">
+      <figure>
+        <figcaption>
+          <span class="ask" data-tip="Drag to turn the solid. Scroll to zoom. The coloured rectangle is the slice, and only the walls it crosses become the cut."><span class="name">Solid</span></span>
+          <span id="size" class="ask" data-tip="The size of the loaded solid, in millimetres, after rotation and scale. Triangle count is the STL's own mesh.">No file yet</span>
+        </figcaption>
+        <canvas id="view3d" aria-label="Solid preview"></canvas>
+        <p class="hint">Drag to look around. Scroll to zoom. Double-click to fit. The coloured rectangle is the slice.</p>
+      </figure>
+      <figure>
+        <figcaption><span class="ask" data-tip="The closed lines the cutter will follow. Pale is acrylic that stays. The ground colour is cut away."><span class="name">Cutting pattern</span></span></figcaption>
+        <canvas id="view2d" aria-label="Cutting pattern preview"></canvas>
+        <ul class="legend">
+          <li class="ask" data-tip="Acrylic that stays on the sheet after the cut."><i class="swatch keep"></i><span class="name">Material that stays</span></li>
+          <li class="ask" data-tip="The area outside the ornament, and every opening the slice found."><i class="swatch cut"></i><span class="name">Material that is cut away</span></li>
+          <li class="ask" data-tip="A closed piece sitting inside a cut. Once that opening is machined, this piece is no longer held."><i class="swatch loose"></i><span class="name">Loose piece inside a cut</span></li>
+          <li class="ask" data-tip="A line that does not close. It is drawn dashed and left out of the SVG."><i class="swatch open"></i><span class="name">Open contour, left out of the file</span></li>
+        </ul>
+      </figure>
+    </section>
+
+    <section class="panel">
+      <div class="actions">
+        <button type="button" class="primary ask" id="load" data-tip="Open a binary or ASCII STL from this computer. One unit in the file is treated as one millimetre.">Load STL</button>
+        <button type="button" class="ask" id="sample" data-tip="A 50 mm disk, 1.25 mm thick. It has a through hole, a loose inner disk, and a recess that does not go through. Use it to learn the slice before you load your own ornament.">Sample ornament</button>
+        <input id="file" type="file" accept=".stl,.STL,model/stl" hidden />
+      </div>
+      <p id="sample-note" class="note" hidden></p>
+      <p id="status" class="status">Load an STL, or open the sample ornament. Dotted names explain themselves when you hover them.</p>
+
+      <h2>Adjust the model</h2>
+      <div class="grid">
+        <label class="ask" data-tip="Turns the solid about its width. The slice stays level until you press Use this view.">
+          <span class="name">Rotate X</span>
+          <input id="rx" type="number" value="0" step="1" /> <span>deg</span>
+        </label>
+        <label class="ask" data-tip="Turns the solid about its depth. The slice stays level until you press Use this view.">
+          <span class="name">Rotate Y</span>
+          <input id="ry" type="number" value="0" step="1" /> <span>deg</span>
+        </label>
+        <label class="ask" data-tip="Turns the solid in the sheet, the way a part spins flat on the table.">
+          <span class="name">Rotate Z</span>
+          <input id="rz" type="number" value="0" step="1" /> <span>deg</span>
+        </label>
+        <label class="ask" data-tip="1 keeps the STL's own millimetres. 2 doubles every size. The exported drawing uses the scaled size.">
+          <span class="name">Scale</span>
+          <input id="scale" type="number" value="1" min="0.001" step="0.01" /> <span>× mm</span>
+        </label>
+      </div>
+      <button type="button" class="ask" id="reset" data-tip="Puts rotation back to zero and scale back to 1. The slice returns to the middle.">Reset rotation and scale</button>
+
+      <h2>View and slice</h2>
+      <div class="row" role="group" aria-label="Viewing direction">
+        <button type="button" class="ask" data-view="top" data-tip="Looks down on the sheet. For a flat 1.25 mm ornament this is the cut you want. The slice goes through the thickness." aria-pressed="true">Top</button>
+        <button type="button" class="ask" data-view="front" data-tip="Looks at the front edge, with height running up the screen. Use it when the part should be cut from the front." aria-pressed="false">Front</button>
+        <button type="button" class="ask" data-view="side" data-tip="Looks at the side edge. The slice is vertical through the part." aria-pressed="false">Side</button>
+        <button type="button" class="ask" id="use-view" data-tip="After you drag the solid, this locks the slice to the direction you are looking. Generate again to take that cut.">Use this view</button>
+      </div>
+      <label class="ask slice" data-tip="Slides the cutting plane through the solid. The middle of a 1.25 mm sheet keeps through holes and leaves out a recess that does not go through.">
+        <span class="name">Slice height</span>
+        <input id="slice" type="range" min="0" max="1000" value="500" />
+        <input id="slice-mm" type="number" step="0.001" value="0" aria-label="Slice height in millimetres" /> <span>mm</span>
+      </label>
+      <p id="thickness" class="note">The coloured rectangle is the slice. Only the walls it crosses become the cut.</p>
+      <label class="ask" data-tip="Open ends closer than this can be joined. You are asked before anything changes. On an intricate ornament, 0.05 mm keeps a real slot from closing.">
+        <span class="name">Gap repair</span>
+        <input id="tolerance" type="number" min="0" max="5" step="0.01" value="0.05" /> <span>mm</span>
+      </label>
+      <p class="note">Gaps smaller than this can be joined. On an intricate ornament, 0.05 mm keeps a real slot from closing. You are asked before any gap is joined.</p>
+
+      <div class="actions">
+        <button type="button" class="primary ask" id="generate" data-tip="Builds the cutting drawing from the current slice. Closed lines can be exported. Open lines stay dashed and are left out.">Generate cutting pattern</button>
+        <button type="button" class="ask" id="fit3" data-tip="Frames the solid in the preview.">Fit solid</button>
+        <button type="button" class="ask" id="fit2" data-tip="Frames the cutting drawing. You can also drag it and scroll to zoom.">Fit drawing</button>
+      </div>
+      <p id="report" class="report"></p>
+      <button type="button" class="primary ask" id="export" data-tip="Saves an SVG. Every path is closed. The width and height are millimetres, and 1 unit is 1 mm. In Makera Studio, check that the imported width matches the size shown here." disabled>Export SVG</button>
+
+      <details>
+        <summary>Opening the file, and cutting a 1.25 mm ornament</summary>
+        <ol>
+          <li>Double-click <code>stl-to-svg.html</code> in the same folder as the NC editor. The page opens from the disk. There is no server and no library to install.</li>
+          <li>Press Load STL, or press Sample ornament. The sample is a 50 mm disk, 1.25 mm thick, with a through hole, a loose inner disk, and a recess that does not go through.</li>
+          <li>Press Top for a sheet lying flat. Front and Side look at the edge. Drag the solid, then press Use this view if the slice should follow that look.</li>
+          <li>Leave the slice in the middle of a 1.25 mm sheet. A through hole stays. A shallow recess disappears. Slide the plane near the top and generate again to see the recess become an opening.</li>
+          <li>Press Generate cutting pattern. Pale is the acrylic that stays. The ground colour is what the cutter removes. The loose colour is a piece that will come loose.</li>
+          <li>If gaps are listed, read the warning. Repair only if those gaps are breaks in the outline, not slots you want to keep.</li>
+          <li>Press Export SVG. Every path in the file is closed. The width and height are millimetres, and 1 unit in the file is 1 mm. In Makera Studio, check that the imported width matches the size shown here before you cut.</li>
+        </ol>
+        <p>Hover a dotted name for a short explanation. Paper, Dark, Warm summer, and Cool autumn are the same drawing in other colours. The path is the centre of the cut. The file does not offset for a bit. This page writes an SVG. It does not write an NC file, and it does not run the machine.</p>
+      </details>
+    </section>
+  </main>
+
+  <div id="floater" hidden></div>
+
+  <div id="warn" class="modal" hidden>
+    <div class="card" role="dialog" aria-labelledby="warn-title">
+      <h2 id="warn-title">Repair these gaps?</h2>
+      <p id="warn-text"></p>
+      <ul id="warn-list"></ul>
+      <div class="actions">
+        <button type="button" class="primary" id="warn-repair">Repair gaps</button>
+        <button type="button" id="warn-skip">Leave them open</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="export-warn" class="modal" hidden>
+    <div class="card" role="dialog" aria-labelledby="export-title">
+      <h2 id="export-title">Export the closed cuts?</h2>
+      <p id="export-text"></p>
+      <div class="actions">
+        <button type="button" class="primary" id="export-go">Export closed paths</button>
+        <button type="button" id="export-cancel">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="stl-to-svg/js/stl.js"></script>
+  <script src="stl-to-svg/js/geom.js"></script>
+  <script src="stl-to-svg/js/slice.js"></script>
+  <script src="stl-to-svg/js/contour.js"></script>
+  <script src="stl-to-svg/js/sample.js"></script>
+  <script src="stl-to-svg/js/svg.js"></script>
+  <script src="stl-to-svg/js/preview3d.js"></script>
+  <script src="stl-to-svg/js/preview2d.js"></script>
+  <script src="stl-to-svg/js/app.js?v=3"></script>
+</body>
+</html>
