@@ -128,7 +128,11 @@ The annotated pictures for each of those forms are in `docs.html`, under Make a 
 
 ## STL to SVG
 
-Double-click `stl-to-svg.html`. Load an STL, or press Sample ornament. The sample is a 50 mm disk, 1.25 mm thick. Generate cutting pattern at the middle of the sheet. Pale is the acrylic that stays. Amber is a loose piece.
+Double-click `stl-to-svg.html`. Load an STL, or press Sample ornament. The sample is a 50 mm disk, 1.25 mm thick. Generate cutting pattern at the middle of the sheet. Pale is the acrylic that stays. Amber is a loose piece. Profile from this view draws the outline of the whole solid from the direction you are facing. A hole stays only where you can see straight through.
+
+![The sample profile from the front](docs/stl-profile-edge.jpg)
+
+*1 is the profile from the front. The sample is 50 mm wide and 1.25 mm tall. The through hole does not show from this side.*
 
 ![The sample cutting drawing](docs/stl-pattern.jpg)
 
@@ -140,4 +144,4 @@ Attach loose pieces joins each loose piece to the nearest surrounding material w
 
 *1 is the strip that stays. The inner disk is no longer loose.*
 
-The rest of the pictures, including the solid, the slice controls, and the question before the cut changes, are in `docs.html`, under Turn an STL into a cutting drawing. Export SVG writes closed paths in millimetres. Confirm the imported width in Makera Studio before you cut.
+The rest of the pictures, including the solid, the slice controls, the profile button, and the question before the cut changes, are in `docs.html`, under Turn an STL into a cutting drawing. Export SVG writes closed paths in millimetres. Confirm the imported width in Makera Studio before you cut.

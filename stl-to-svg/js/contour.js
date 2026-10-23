@@ -360,6 +360,10 @@
     next.repaired = pattern.gaps.length;
     if (pattern.attached) next.attached = pattern.attached;
     if (pattern.nudged) next.nudged = true;
+    if (pattern.profile) {
+      next.profile = true;
+      next.step = pattern.step;
+    }
     return next;
   }
 
@@ -369,6 +373,10 @@
     if (extra.repaired) pattern.repaired = extra.repaired;
     if (extra.attached) pattern.attached = extra.attached;
     if (extra.nudged) pattern.nudged = true;
+    if (extra.profile) {
+      pattern.profile = true;
+      pattern.step = extra.step;
+    }
     pattern.bounds = boundsOf(pattern);
     return pattern;
   }

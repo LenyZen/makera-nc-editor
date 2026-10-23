@@ -486,7 +486,9 @@
       open: pattern.open || [],
       repaired: next.gaps.length ? 0 : (pattern.repaired || 0),
       attached: (pattern.attached || 0) + (before - after),
-      nudged: !!pattern.nudged
+      nudged: !!pattern.nudged,
+      profile: !!pattern.profile,
+      step: pattern.step
     });
   }
 

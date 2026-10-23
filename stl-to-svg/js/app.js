@@ -92,15 +92,25 @@
     const loose = pattern.closed.filter((c) => c.role === "loose").length;
     const lines = [];
     const info = heightNow();
-    lines.push(
-      pattern.bounds.width.toFixed(2) + " × " + pattern.bounds.height.toFixed(2) +
-      " mm. Slice at " + info.height.toFixed(3) + " mm, inside a span of " + info.span.toFixed(3) + " mm."
-    );
-    if (!pattern.closed.length) {
-      lines.push("No closed cut at this height. Move the red plane into the solid and generate again.");
+    if (pattern.profile) {
+      lines.push(
+        pattern.bounds.width.toFixed(2) + " × " + pattern.bounds.height.toFixed(2) +
+        " mm. Profile from this view, across " + info.span.toFixed(3) + " mm. The outline stays within " +
+        (pattern.step || 0).toFixed(2) + " mm of the solid."
+      );
     } else {
       lines.push(
-        pattern.closed.length + " closed contours: " + outlines + " outside, " +
+        pattern.bounds.width.toFixed(2) + " × " + pattern.bounds.height.toFixed(2) +
+        " mm. Slice at " + info.height.toFixed(3) + " mm, inside a span of " + info.span.toFixed(3) + " mm."
+      );
+    }
+    if (!pattern.closed.length) {
+      lines.push(pattern.profile
+        ? "No outline from this view."
+        : "No closed cut at this height. Move the red plane into the solid and generate again.");
+    } else {
+      lines.push(
+        pattern.closed.length + (pattern.closed.length === 1 ? " closed contour: " : " closed contours: ") + outlines + " outside, " +
         holes + (holes === 1 ? " opening, " : " openings, ") +
         loose + (loose === 1 ? " loose piece." : " loose pieces.")
       );
@@ -111,8 +121,12 @@
     if (pattern.attached) {
       lines.push(
         "Joined " + pattern.attached + " loose " + (pattern.attached === 1 ? "piece" : "pieces") +
-        " to the surrounding material. The strip stays, so that part of the opening is closed. Generate again to start from the slice."
+        " to the surrounding material. The strip stays, so that part of the opening is closed. " +
+        (pattern.profile ? "Profile again to start from this view." : "Generate again to start from the slice.")
       );
+    }
+    if (pattern.profile && pattern.closed.length) {
+      lines.push("A hole in this profile is a place you can see straight through. The slice height was not used.");
     }
     if (pattern.open.length) {
       lines.push(pattern.open.length + (pattern.open.length === 1 ? " open contour is" : " open contours are") + " drawn dashed. Open lines are left out of the SVG.");
@@ -161,6 +175,34 @@
     view2d.setDrafts(null);
     $("attach-warn").hidden = true;
     showPattern(pattern);
+  }
+
+  function profile() {
+    if (!state.shown) {
+      setStatus("Load an STL first.", "bad");
+      return;
+    }
+    if (state.busy) return;
+    state.busy = true;
+    setStatus("Building the profile from this view…", "");
+    setTimeout(() => {
+      try {
+        const info = heightNow();
+        const cut = NS.profileMesh(state.shown, state.basis);
+        const pattern = NS.contours.analyze(cut.segments, readNumbers().tolerance);
+        pattern.profile = true;
+        pattern.step = Math.max(cut.step || 0, cut.error || 0);
+        pattern.span = info.span;
+        state.undo = null;
+        state.pending = null;
+        view2d.setDrafts(null);
+        $("attach-warn").hidden = true;
+        showPattern(pattern);
+      } catch (error) {
+        setStatus(error.message || "Could not build that profile.", "bad");
+      }
+      state.busy = false;
+    }, 30);
   }
 
   function bridgeWidth() {
@@ -331,11 +373,12 @@
     state.sliceT = 0.5;
     updatePlane();
     document.querySelectorAll("[data-view]").forEach((button) => button.setAttribute("aria-pressed", "false"));
-    setStatus("The red plane now matches the way you are looking. Generate to take the cut.", "ok");
+    setStatus("The red plane now matches the way you are looking. Generate takes a slice there. Profile from this view takes the whole outline.", "ok");
   });
   $("fit3").addEventListener("click", () => view3d.fit());
   $("fit2").addEventListener("click", () => view2d.fit());
   $("generate").addEventListener("click", generate);
+  $("profile").addEventListener("click", profile);
   $("export").addEventListener("click", askExport);
   $("attach").addEventListener("click", () => {
     if (!state.pattern) {

@@ -92,7 +92,7 @@
         <button type="button" class="ask" data-view="top" data-tip="Looks down on the sheet. For a flat 1.25 mm ornament this is the cut you want. The slice goes through the thickness." aria-pressed="true">Top</button>
         <button type="button" class="ask" data-view="front" data-tip="Looks at the front edge, with height running up the screen. Use it when the part should be cut from the front." aria-pressed="false">Front</button>
         <button type="button" class="ask" data-view="side" data-tip="Looks at the side edge. The slice is vertical through the part." aria-pressed="false">Side</button>
-        <button type="button" class="ask" id="use-view" data-tip="After you drag the solid, this locks the slice to the direction you are looking. Generate again to take that cut.">Use this view</button>
+        <button type="button" class="ask" id="use-view" data-tip="After you drag the solid, this locks the direction to the way you are looking. Generate takes a slice there. Profile from this view takes the whole outline.">Use this view</button>
       </div>
       <label class="ask slice" data-tip="Slides the cutting plane through the solid. The middle of a 1.25 mm sheet keeps through holes and leaves out a recess that does not go through.">
         <span class="name">Slice height</span>
@@ -119,6 +119,7 @@
 
       <div class="actions">
         <button type="button" class="primary ask" id="generate" data-tip="Builds the cutting drawing from the current slice. Closed lines can be exported. Open lines stay dashed and are left out.">Generate cutting pattern</button>
+        <button type="button" class="ask" id="profile" data-tip="The outline of the whole solid from the direction you are facing. A hole stays only where you can see straight through. A recess that stops partway is filled in. Drag the solid and press Use this view first if this look should be the direction.">Profile from this view</button>
         <button type="button" class="ask" id="fit3" data-tip="Frames the solid in the preview.">Fit solid</button>
         <button type="button" class="ask" id="fit2" data-tip="Frames the cutting drawing. You can also drag it and scroll to zoom.">Fit drawing</button>
       </div>
@@ -132,6 +133,7 @@
           <li>Press Load STL, or press Sample ornament. The sample is a 50 mm disk, 1.25 mm thick, with a through hole, a loose inner disk, and a recess that does not go through.</li>
           <li>Press Top for a sheet lying flat. Front and Side look at the edge. Drag the solid, then press Use this view if the slice should follow that look.</li>
           <li>Leave the slice in the middle of a 1.25 mm sheet. A through hole stays. A shallow recess disappears. Slide the plane near the top and generate again to see the recess become an opening.</li>
+          <li>Press Profile from this view for the outline of the whole solid in that direction. A hole stays where you can see straight through. A recess that stops partway is filled in. The slice height is not used.</li>
           <li>Press Generate cutting pattern. Pale is the acrylic that stays. The ground colour is what the cutter removes. The loose colour is a piece that will come loose.</li>
           <li>If gaps are listed, read the warning. Repair only if those gaps are breaks in the outline, not slots you want to keep.</li>
           <li>A loose piece can be joined to the rest. Attach loose pieces uses a strip of the bridge width at the nearest gap. Draw box or Draw circle to paint the place yourself, from the loose piece onto the material that stays. The page asks before the cut changes. Generate again starts over from the slice.</li>
@@ -182,12 +184,13 @@
   <script src="stl-to-svg/js/stl.js"></script>
   <script src="stl-to-svg/js/geom.js"></script>
   <script src="stl-to-svg/js/slice.js"></script>
+  <script src="stl-to-svg/js/profile.js"></script>
   <script src="stl-to-svg/js/contour.js"></script>
   <script src="stl-to-svg/js/bridge.js"></script>
   <script src="stl-to-svg/js/sample.js"></script>
   <script src="stl-to-svg/js/svg.js"></script>
   <script src="stl-to-svg/js/preview3d.js"></script>
   <script src="stl-to-svg/js/preview2d.js?v=4"></script>
-  <script src="stl-to-svg/js/app.js?v=4"></script>
+  <script src="stl-to-svg/js/app.js?v=5"></script>
 </body>
 </html>

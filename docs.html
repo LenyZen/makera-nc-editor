@@ -368,6 +368,18 @@
       <figcaption>1 is Top, the flat sheet. 2 is the slice, here in the middle. Gap repair reads 0.05. Bridge width reads 1.5. 3 joins every loose piece at the nearest gap. 4 draws a circle so you can paint the place yourself. Draw box is the same idea with a rectangle. The black button builds the cutting drawing. Export SVG saves it.</figcaption>
     </figure>
 
+    <h3>Profile from this view</h3>
+    <p>Choose the direction first. <strong>Top</strong>, <strong>Front</strong>, and <strong>Side</strong> are the flat looks. Drag the solid, then press <strong>Use this view</strong> when the coloured rectangle should follow that look. Press <strong>Profile from this view</strong>. The drawing is the outline of the whole solid from that direction. The slice height is not used.</p>
+    <figure class="shot">
+      <img src="docs/stl-profile-view.jpg" alt="Front is selected. An arrow marks Profile from this view, beside Generate cutting pattern." />
+      <figcaption>1 is Front, looking at the edge. 2 draws the profile from that direction. Generate cutting pattern still takes one slice. Top, Side, and Use this view choose a direction the same way.</figcaption>
+    </figure>
+    <p>A hole stays only where you can see straight through. A recess that stops partway is filled in. From Top, the sample profile is the 50 mm disk, the through hole, and the loose inner disk. From the front, the same solid is the edge of the sheet.</p>
+    <figure class="shot">
+      <img src="docs/stl-profile-edge.jpg" alt="The profile of the sample from the front, a pale bar labelled 50.00 by 1.25 mm." />
+      <figcaption>1 is that profile. It is 50 mm wide and 1.25 mm tall. The through hole does not appear, because from the front you cannot see through it. Export SVG writes this outline as closed paths in millimetres.</figcaption>
+    </figure>
+
     <h3>Hold a loose piece on</h3>
     <p><strong>Attach loose pieces</strong> runs a strip of the bridge width from each loose piece to the nearest surrounding material. It starts at 1.5 mm. A wider strip is stronger and closes more of the opening. <strong>Draw box</strong> or <strong>Draw circle</strong> paints the place yourself. Drag the box from corner to corner, or drag the circle from its centre out to the rim. Start on the loose piece and finish on the material that stays. The page asks before the cut changes.</p>
     <figure class="shot narrow">
