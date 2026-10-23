@@ -19,6 +19,7 @@ Double-click `stl-to-svg.html` in the folder with the NC editor and the gear pag
 3. Leave the slice in the middle of the 1.25 mm thickness. A through hole stays. A recess that does not go through the sheet disappears. Move the slice near a face and generate again if you need to see which openings are only decorative.
 4. Set **Gap repair** to 0.05 mm for intricate work. The page asks before it joins anything.
 5. Press **Generate cutting pattern**. Pale is acrylic that stays. Warm gray is cut away. Amber is a piece that will come loose once the cut around it is made. A dashed red line is an open contour.
-6. Press **Export SVG**. Every path in the file is closed. The width and height are millimetres, and 1 unit is 1 mm. In Makera Studio, confirm the imported width matches the size on this page before you cut.
+6. **Attach loose pieces** joins each loose piece to the nearest surrounding material with a strip of the bridge width. It starts at 1.5 mm. **Draw box** or **Draw circle** paints that place on the cutting drawing: drag from the loose piece onto the material that stays. The page asks before the cut changes. The strip stays in the part, so the exported path walks around it. **Undo attach** puts the drawing back. Generate again starts over from the slice.
+7. Press **Export SVG**. Every path in the file is closed. The width and height are millimetres, and 1 unit is 1 mm. In Makera Studio, confirm the imported width matches the size on this page before you cut.
 
 The path is the centre of the cut. The file does not offset for a bit, and it does not write an NC file.

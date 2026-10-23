@@ -334,16 +334,44 @@
     return pattern;
   }
 
+  function segmentsOf(pattern) {
+    if (pattern.edges && pattern.edges.length && pattern.pts && pattern.pts.length) {
+      return pattern.edges.map((edge) => ({ a: pattern.pts[edge[0]], b: pattern.pts[edge[1]] }));
+    }
+    const segments = [];
+    const all = (pattern.closed || []).concat(pattern.open || []);
+    for (const contour of all) {
+      const count = contour.pts.length;
+      const last = contour.closed ? count : count - 1;
+      for (let i = 0; i < last; i++) {
+        segments.push({ a: contour.pts[i], b: contour.pts[(i + 1) % count] });
+      }
+    }
+    return segments;
+  }
+
   function repair(pattern) {
     if (!pattern.gaps.length) return pattern;
-    const segments = pattern.edges.map((edge) => ({ a: pattern.pts[edge[0]], b: pattern.pts[edge[1]] }));
+    const segments = segmentsOf(pattern);
     for (const gap of pattern.gaps) {
       segments.push({ a: pattern.pts[gap.i], b: pattern.pts[gap.j] });
     }
     const next = analyze(segments, pattern.tolerance);
     next.repaired = pattern.gaps.length;
+    if (pattern.attached) next.attached = pattern.attached;
+    if (pattern.nudged) next.nudged = true;
     return next;
   }
 
-  NS.contours = { analyze, repair };
+  function finish(pattern, extra) {
+    extra = extra || {};
+    if (extra.open && extra.open.length) pattern.open = pattern.open.concat(extra.open);
+    if (extra.repaired) pattern.repaired = extra.repaired;
+    if (extra.attached) pattern.attached = extra.attached;
+    if (extra.nudged) pattern.nudged = true;
+    pattern.bounds = boundsOf(pattern);
+    return pattern;
+  }
+
+  NS.contours = { analyze, repair, finish };
 })(typeof window !== "undefined" ? window : globalThis);

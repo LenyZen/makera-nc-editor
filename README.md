@@ -14,7 +14,7 @@ Download or clone this folder, then double-click `index.html`. No install and no
 
 Double-click `giving-you-the-gears.html` for the gear generator. It writes an STL. It does not write an NC file.
 
-Double-click `stl-to-svg.html` to turn an STL into a closed SVG cutting drawing. It sits in this same folder. Nothing needs installing. Notes for that page are in `stl-to-svg/README.md`.
+Double-click `stl-to-svg.html` to turn an STL into a closed SVG cutting drawing. It sits in this same folder. Nothing needs installing. A loose piece can be joined to the surrounding material with a strip, or with a box or circle drawn on the cutting drawing. Notes for that page are in `stl-to-svg/README.md`.
 
 The full guide is `docs.html`. It starts with the same warning. The gear pictures are at the bottom of that page.
 

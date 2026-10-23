@@ -13,6 +13,12 @@
       muted: "#5c564c"
     };
     let drag = null;
+    let tool = "pan";
+    let commit = null;
+    let shape = null;
+    let drafts = [];
+    canvas.style.cursor = "grab";
+    canvas.style.touchAction = "none";
 
     function resize() {
       const dpr = Math.min(window.devicePixelRatio || 1, 2);
@@ -26,6 +32,61 @@
 
     function project(p) {
       return { x: p.x * view.scale + view.panX, y: -p.y * view.scale + view.panY };
+    }
+
+    function unproject(sx, sy) {
+      return { x: (sx - view.panX) / view.scale, y: -(sy - view.panY) / view.scale };
+    }
+
+    function boxPoly(s) {
+      const x0 = Math.min(s.x0, s.x1), x1 = Math.max(s.x0, s.x1);
+      const y0 = Math.min(s.y0, s.y1), y1 = Math.max(s.y0, s.y1);
+      if (x1 - x0 < 0.2 || y1 - y0 < 0.2) return null;
+      return [
+        { x: x0, y: y0 },
+        { x: x1, y: y0 },
+        { x: x1, y: y1 },
+        { x: x0, y: y1 }
+      ];
+    }
+
+    function circlePoly(s) {
+      const radius = Math.hypot(s.x1 - s.x0, s.y1 - s.y0);
+      if (radius < 0.2) return null;
+      const pts = [];
+      const count = 64;
+      for (let i = 0; i < count; i++) {
+        const angle = (i / count) * Math.PI * 2;
+        pts.push({ x: s.x0 + Math.cos(angle) * radius, y: s.y0 + Math.sin(angle) * radius });
+      }
+      return pts;
+    }
+
+    function livePoly() {
+      if (!shape) return null;
+      return tool === "circle" ? circlePoly(shape) : boxPoly(shape);
+    }
+
+    function paintShape(pts) {
+      if (!pts || pts.length < 3) return;
+      ctx.save();
+      ctx.beginPath();
+      const first = project(pts[0]);
+      ctx.moveTo(first.x, first.y);
+      for (let i = 1; i < pts.length; i++) {
+        const p = project(pts[i]);
+        ctx.lineTo(p.x, p.y);
+      }
+      ctx.closePath();
+      ctx.fillStyle = colors.keep;
+      ctx.globalAlpha = 0.55;
+      ctx.fill();
+      ctx.globalAlpha = 1;
+      ctx.strokeStyle = colors.loose;
+      ctx.lineWidth = 1.5;
+      ctx.setLineDash([5, 4]);
+      ctx.stroke();
+      ctx.restore();
     }
 
     function fit() {
@@ -109,6 +170,9 @@
         ctx.fillText("loose", p.x + 4, p.y);
       }
 
+      for (const poly of drafts) paintShape(poly);
+      paintShape(livePoly());
+
       const bar = view.scale >= 4 ? 10 : 5;
       const x = 16;
       const y = h - 22;
@@ -124,18 +188,50 @@
       ctx.fillText(pattern.bounds.width.toFixed(2) + " × " + pattern.bounds.height.toFixed(2) + " mm", x, 20);
     }
 
+    function modelPoint(event) {
+      const rect = canvas.getBoundingClientRect();
+      return unproject(event.clientX - rect.left, event.clientY - rect.top);
+    }
+
     canvas.addEventListener("pointerdown", (event) => {
-      canvas.setPointerCapture(event.pointerId);
+      try { canvas.setPointerCapture(event.pointerId); } catch (e) {}
+      if (tool !== "pan" && event.button === 0) {
+        const point = modelPoint(event);
+        shape = { x0: point.x, y0: point.y, x1: point.x, y1: point.y };
+        drag = { drawing: true };
+        return;
+      }
+      shape = null;
       drag = { x: event.clientX, y: event.clientY, panX: view.panX, panY: view.panY };
     });
     canvas.addEventListener("pointermove", (event) => {
       if (!drag) return;
+      if (drag.drawing) {
+        const point = modelPoint(event);
+        shape.x1 = point.x;
+        shape.y1 = point.y;
+        draw();
+        return;
+      }
       view.panX = drag.panX + (event.clientX - drag.x);
       view.panY = drag.panY + (event.clientY - drag.y);
       draw();
     });
-    canvas.addEventListener("pointerup", () => { drag = null; });
-    canvas.addEventListener("pointercancel", () => { drag = null; });
+    function endDraw(commitShape) {
+      if (drag && drag.drawing && commitShape) {
+        const poly = livePoly();
+        const kind = tool;
+        shape = null;
+        drag = null;
+        draw();
+        if (poly && commit) commit(poly, kind);
+        return;
+      }
+      shape = null;
+      drag = null;
+    }
+    canvas.addEventListener("pointerup", () => endDraw(true));
+    canvas.addEventListener("pointercancel", () => endDraw(false));
     canvas.addEventListener("wheel", (event) => {
       event.preventDefault();
       const rect = canvas.getBoundingClientRect();
@@ -153,6 +249,8 @@
       resize,
       setPattern(pattern) {
         view.pattern = pattern;
+        drafts = [];
+        shape = null;
         view.fitted = false;
         fit();
         draw();
@@ -161,6 +259,19 @@
       redraw: draw,
       setPalette(next) {
         Object.assign(colors, next);
+        draw();
+      },
+      setTool(next) {
+        tool = next === "box" || next === "circle" ? next : "pan";
+        canvas.style.cursor = tool === "pan" ? "grab" : "crosshair";
+        shape = null;
+        draw();
+        return tool;
+      },
+      getTool() { return tool; },
+      onShape(fn) { commit = fn; },
+      setDrafts(polys) {
+        drafts = polys && polys.length ? polys : [];
         draw();
       }
     };

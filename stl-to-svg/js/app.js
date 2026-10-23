@@ -8,7 +8,9 @@
     name: "cutting-pattern",
     basis: null,
     sliceT: 0.5,
-    pattern: null
+    pattern: null,
+    undo: null,
+    pending: null
   };
 
   function setStatus(text, kind) {
@@ -61,8 +63,13 @@
     state.raw = parsed;
     state.name = name.replace(/\.stl$/i, "") || "cutting-pattern";
     state.pattern = null;
+    state.undo = null;
+    state.pending = null;
     state.sliceT = 0.5;
     $("export").disabled = true;
+    $("attach").disabled = true;
+    $("undo-attach").hidden = true;
+    $("attach-warn").hidden = true;
     view2d.setPattern(null);
     $("report").textContent = "";
     applyTransform();
@@ -99,7 +106,13 @@
       );
     }
     if (loose) {
-      lines.push("A loose piece sits inside a cut. Once that opening is machined, the piece is no longer held.");
+      lines.push("A loose piece sits inside a cut. Once that opening is machined, the piece is no longer held. Attach loose pieces joins it at the nearest gap, or draw a box or circle to choose the place.");
+    }
+    if (pattern.attached) {
+      lines.push(
+        "Joined " + pattern.attached + " loose " + (pattern.attached === 1 ? "piece" : "pieces") +
+        " to the surrounding material. The strip stays, so that part of the opening is closed. Generate again to start from the slice."
+      );
     }
     if (pattern.open.length) {
       lines.push(pattern.open.length + (pattern.open.length === 1 ? " open contour is" : " open contours are") + " drawn dashed. Open lines are left out of the SVG.");
@@ -128,6 +141,8 @@
     $("report").textContent = text;
     const ready = pattern.closed.length > 0 && !pattern.open.length && !pattern.gaps.length;
     $("export").disabled = pattern.closed.length === 0;
+    $("attach").disabled = pattern.closed.filter((c) => c.role === "loose").length === 0;
+    $("undo-attach").hidden = !state.undo;
     setStatus(ready ? "Closed cuts. Ready to export." : text, ready ? "ok" : "bad");
     if (pattern.gaps.length && !pattern.repaired) openRepair(pattern);
   }
@@ -141,7 +156,70 @@
     const cut = NS.sliceMesh(state.shown, state.basis, info.height);
     const pattern = NS.contours.analyze(cut.segments, readNumbers().tolerance);
     pattern.nudged = cut.nudged;
+    state.undo = null;
+    state.pending = null;
+    view2d.setDrafts(null);
+    $("attach-warn").hidden = true;
     showPattern(pattern);
+  }
+
+  function bridgeWidth() {
+    const width = NS.bridge.clampWidth($("bridge").value);
+    $("bridge").value = String(Math.round(width * 100) / 100);
+    return width;
+  }
+
+  function cancelAttach() {
+    state.pending = null;
+    view2d.setDrafts(null);
+    $("attach-warn").hidden = true;
+  }
+
+  function openAttach(proposal, kind) {
+    state.pending = proposal;
+    state.pending.kind = kind;
+    const count = proposal.count;
+    const piece = count === 1 ? "loose piece" : "loose pieces";
+    $("attach-title").textContent = count === 1 ? "Attach this loose piece?" : "Attach these loose pieces?";
+    if (kind === "nearest") {
+      $("attach-text").textContent = "A strip " + proposal.width.toFixed(2) +
+        " mm wide runs from each loose piece to the nearest surrounding material. The strip stays, so the piece remains attached. The opening closes along that strip. A wider strip closes more of the opening.";
+    } else {
+      const shape = kind === "circle" ? "circle" : "box";
+      $("attach-text").textContent = "The " + shape + " you drew stays. It joins " + count + " " + piece +
+        " to the rest of the model. The cut changes inside that shape. Where the shape covers an opening, that part of the opening closes.";
+    }
+    const list = $("attach-list");
+    list.replaceChildren();
+    (proposal.gaps || []).forEach((gap) => {
+      const item = document.createElement("li");
+      item.textContent = "Gap of " + gap.distance.toFixed(2) + " mm";
+      list.appendChild(item);
+    });
+    view2d.setDrafts(proposal.bridges);
+    $("attach-warn").hidden = false;
+    setStatus("Read the question before the cut changes.", "");
+  }
+
+  function confirmAttach() {
+    const pending = state.pending;
+    if (!pending || !state.pattern) {
+      cancelAttach();
+      return;
+    }
+    let next = null;
+    try {
+      next = NS.bridge.apply(state.pattern, pending.bridges);
+    } catch (error) {
+      next = null;
+    }
+    cancelAttach();
+    if (!next) {
+      setStatus("That area did not join the loose piece onto the rest. Draw across the gap so the shape lands on the material that stays.", "bad");
+      return;
+    }
+    state.undo = state.pattern;
+    showPattern(next);
   }
 
   function openRepair(pattern) {
@@ -259,10 +337,60 @@
   $("fit2").addEventListener("click", () => view2d.fit());
   $("generate").addEventListener("click", generate);
   $("export").addEventListener("click", askExport);
+  $("attach").addEventListener("click", () => {
+    if (!state.pattern) {
+      setStatus("Generate a cutting pattern first.", "bad");
+      return;
+    }
+    const proposal = NS.bridge.nearest(state.pattern, bridgeWidth());
+    if (!proposal.ok) {
+      setStatus(proposal.message, "bad");
+      return;
+    }
+    openAttach(proposal, "nearest");
+  });
+  function setDrawTool(name) {
+    const next = view2d.getTool() === name ? "pan" : name;
+    view2d.setTool(next);
+    document.querySelectorAll("[data-tool]").forEach((button) => {
+      button.setAttribute("aria-pressed", button.dataset.tool === next ? "true" : "false");
+    });
+    if (next === "box") setStatus("Drag a box from the loose piece across the gap onto the material that stays.", "ok");
+    else if (next === "circle") setStatus("Drag a circle from its centre. Let the rim reach the material that stays.", "ok");
+    else setStatus("Drag the drawing to move it. Scroll to zoom.", "ok");
+  }
+  $("tool-box").addEventListener("click", () => setDrawTool("box"));
+  $("tool-circle").addEventListener("click", () => setDrawTool("circle"));
+  view2d.onShape((poly, kind) => {
+    if (!state.pattern) {
+      setStatus("Generate a cutting pattern first.", "bad");
+      return;
+    }
+    const proposal = NS.bridge.fromShape(state.pattern, poly);
+    if (!proposal.ok) {
+      view2d.setDrafts(null);
+      setStatus(proposal.message, "bad");
+      return;
+    }
+    openAttach(proposal, kind);
+  });
+  $("attach-go").addEventListener("click", confirmAttach);
+  $("attach-cancel").addEventListener("click", cancelAttach);
+  $("undo-attach").addEventListener("click", () => {
+    if (!state.undo) return;
+    const previous = state.undo;
+    state.undo = null;
+    state.pending = null;
+    view2d.setDrafts(null);
+    $("attach-warn").hidden = true;
+    showPattern(previous);
+    setStatus("The last attach is undone.", "ok");
+  });
 
   $("warn-repair").addEventListener("click", () => {
     $("warn").hidden = true;
     if (!state.pattern) return;
+    state.undo = null;
     showPattern(NS.contours.repair(state.pattern));
   });
   $("warn-skip").addEventListener("click", () => { $("warn").hidden = true; });
@@ -372,7 +500,11 @@
     hideTip();
   });
   document.addEventListener("keydown", (event) => {
-    if (event.key === "Escape") hideTip();
+    if (event.key === "Escape") {
+      hideTip();
+      if (!$("attach-warn").hidden) cancelAttach();
+      if (view2d.getTool() !== "pan") setDrawTool(view2d.getTool());
+    }
   });
   window.addEventListener("scroll", () => { if (tipHost) placeTip(tipHost); }, true);
   window.addEventListener("resize", () => { if (tipHost) placeTip(tipHost); });

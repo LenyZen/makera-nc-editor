@@ -47,6 +47,7 @@
       <figure>
         <figcaption><span class="ask" data-tip="The closed lines the cutter will follow. Pale is acrylic that stays. The ground colour is cut away."><span class="name">Cutting pattern</span></span></figcaption>
         <canvas id="view2d" aria-label="Cutting pattern preview"></canvas>
+        <p class="hint">Drag to move the drawing. Scroll to zoom. Draw a box or a circle across a loose piece and onto the material that stays.</p>
         <ul class="legend">
           <li class="ask" data-tip="Acrylic that stays on the sheet after the cut."><i class="swatch keep"></i><span class="name">Material that stays</span></li>
           <li class="ask" data-tip="The area outside the ornament, and every opening the slice found."><i class="swatch cut"></i><span class="name">Material that is cut away</span></li>
@@ -104,6 +105,17 @@
         <input id="tolerance" type="number" min="0" max="5" step="0.01" value="0.05" /> <span>mm</span>
       </label>
       <p class="note">Gaps smaller than this can be joined. On an intricate ornament, 0.05 mm keeps a real slot from closing. You are asked before any gap is joined.</p>
+      <label class="ask" data-tip="Width of the strip that holds a loose piece onto the surrounding material. A wider strip is stronger and closes more of the opening. You are asked before the cut changes.">
+        <span class="name">Bridge width</span>
+        <input id="bridge" type="number" min="0.2" max="30" step="0.1" value="1.5" /> <span>mm</span>
+      </label>
+      <div class="row" role="group" aria-label="Attach loose pieces">
+        <button type="button" class="ask" id="attach" data-tip="Joins every loose piece to the nearest surrounding material with a strip of the bridge width. The strip is kept, so the piece stays on the part. You are asked before the cut changes." disabled>Attach loose pieces</button>
+        <button type="button" class="ask" id="tool-box" data-tool="box" data-tip="Drag a box on the cutting drawing. Start on the loose piece and finish on the material that stays. The inside of the box is kept." aria-pressed="false">Draw box</button>
+        <button type="button" class="ask" id="tool-circle" data-tool="circle" data-tip="Drag a circle on the cutting drawing. The centre is where you press, and the rim follows the pointer. Cover the gap and the material that stays." aria-pressed="false">Draw circle</button>
+        <button type="button" class="ask" id="undo-attach" data-tip="Puts the cutting drawing back to the way it was before the last attach." hidden>Undo attach</button>
+      </div>
+      <p class="note">Attach joins each loose piece to the nearest surrounding material. A box or circle you draw is kept, so a loose piece it covers stays joined where you paint. You are asked before the cut changes.</p>
 
       <div class="actions">
         <button type="button" class="primary ask" id="generate" data-tip="Builds the cutting drawing from the current slice. Closed lines can be exported. Open lines stay dashed and are left out.">Generate cutting pattern</button>
@@ -122,6 +134,7 @@
           <li>Leave the slice in the middle of a 1.25 mm sheet. A through hole stays. A shallow recess disappears. Slide the plane near the top and generate again to see the recess become an opening.</li>
           <li>Press Generate cutting pattern. Pale is the acrylic that stays. The ground colour is what the cutter removes. The loose colour is a piece that will come loose.</li>
           <li>If gaps are listed, read the warning. Repair only if those gaps are breaks in the outline, not slots you want to keep.</li>
+          <li>A loose piece can be joined to the rest. Attach loose pieces uses a strip of the bridge width at the nearest gap. Draw box or Draw circle to paint the place yourself, from the loose piece onto the material that stays. The page asks before the cut changes. Generate again starts over from the slice.</li>
           <li>Press Export SVG. Every path in the file is closed. The width and height are millimetres, and 1 unit in the file is 1 mm. In Makera Studio, check that the imported width matches the size shown here before you cut.</li>
         </ol>
         <p>Hover a dotted name for a short explanation. Paper, Dark, Warm summer, and Cool autumn are the same drawing in other colours. The path is the centre of the cut. The file does not offset for a bit. This page writes an SVG. It does not write an NC file, and it does not run the machine.</p>
@@ -143,6 +156,18 @@
     </div>
   </div>
 
+  <div id="attach-warn" class="modal" hidden>
+    <div class="card" role="dialog" aria-labelledby="attach-title">
+      <h2 id="attach-title">Attach this loose piece?</h2>
+      <p id="attach-text"></p>
+      <ul id="attach-list"></ul>
+      <div class="actions">
+        <button type="button" class="primary" id="attach-go">Attach</button>
+        <button type="button" id="attach-cancel">Leave it loose</button>
+      </div>
+    </div>
+  </div>
+
   <div id="export-warn" class="modal" hidden>
     <div class="card" role="dialog" aria-labelledby="export-title">
       <h2 id="export-title">Export the closed cuts?</h2>
@@ -158,10 +183,11 @@
   <script src="stl-to-svg/js/geom.js"></script>
   <script src="stl-to-svg/js/slice.js"></script>
   <script src="stl-to-svg/js/contour.js"></script>
+  <script src="stl-to-svg/js/bridge.js"></script>
   <script src="stl-to-svg/js/sample.js"></script>
   <script src="stl-to-svg/js/svg.js"></script>
   <script src="stl-to-svg/js/preview3d.js"></script>
-  <script src="stl-to-svg/js/preview2d.js"></script>
-  <script src="stl-to-svg/js/app.js?v=3"></script>
+  <script src="stl-to-svg/js/preview2d.js?v=4"></script>
+  <script src="stl-to-svg/js/app.js?v=4"></script>
 </body>
 </html>
