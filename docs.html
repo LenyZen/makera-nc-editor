@@ -347,16 +347,39 @@
 
     <h2 id="cut-svg">Turn an STL into a cutting drawing</h2>
     <p>Double-click <code>stl-to-svg.html</code>, in the same folder as the editor. Nothing extra is installed. The page opens from the disk. It writes an SVG for Makera Studio. The spindle checklist above is for NC files from the editor. Dotted names explain themselves. Paper, Dark, Warm summer, and Cool autumn match the gear page.</p>
-    <p>Press Load STL, or press Sample ornament. The sample is a 50 mm disk, 1.25 mm thick, with a through hole, a loose inner disk, and a recess that stops partway through the sheet.</p>
-    <ol>
-      <li>Press Top so the red slice lies in the sheet. Drag the solid to look around. Use this view locks the slice to the direction you are looking.</li>
-      <li>Leave the slice in the middle of a 1.25 mm ornament. A through hole stays. A recess that does not go through disappears. Move the slice near a face and generate again when you want to see which openings are only decorative.</li>
-      <li>Leave gap repair at 0.05 mm for intricate work. The page lists every gap and waits. Joining a gap closes the outline. Joining a real slot removes that opening.</li>
-      <li>Press Generate cutting pattern. Pale is the acrylic that stays. Warm gray is what the cutter removes. Amber is a piece that comes loose once the cut around it is made. A dashed red line is open, and it is left out of the file.</li>
-      <li>A loose piece can be joined to the rest. Attach loose pieces runs a strip of the bridge width, 1.5 mm to start, from each loose piece to the nearest surrounding material. Draw box or Draw circle on the cutting drawing to paint that place yourself. Drag the box from corner to corner, or drag the circle from its centre out to the rim. Start on the loose piece and finish on the material that stays. The page asks before the cut changes. Undo attach puts that join back. Generate again starts over from the slice.</li>
-      <li>Press Export SVG. Every path is closed. The width and height are millimetres, and 1 unit in the file is 1 mm. In Makera Studio, confirm the imported width matches the size on the page before you cut.</li>
-    </ol>
-    <p>The strip that joins a loose piece is material that stays. The exported path walks around it. A wider strip closes more of the opening. The path is the centre of the cut. The file does not offset for a bit. Scale 1 keeps the STL's own millimetres.</p>
+
+    <h3>Open the sample</h3>
+    <p>Press <strong>Sample ornament</strong>, or press Load STL and choose your own file. The sample is a 50 mm disk, 1.25 mm thick. A through hole holds a loose inner disk. A recess on the right is 0.40 mm deep and stops partway through the sheet. Drag the solid. Scroll to zoom. Double-click to fit.</p>
+    <figure class="shot">
+      <img src="docs/stl-solid.jpg" alt="The sample ornament in the solid view, with arrows on the slice plane, the loose inner disk, and the shallow recess." />
+      <figcaption>1 is the slice, the coloured rectangle. Only the walls it crosses become the cut. 2 is the loose inner disk, held in the through hole. 3 is the recess. It does not go through, so a slice through the middle leaves it out.</figcaption>
+    </figure>
+
+    <h3>Take the cut</h3>
+    <p>Press <strong>Top</strong> for a sheet lying flat. Leave the slice in the middle of a 1.25 mm ornament. On the sample that height is 0.625 mm, inside a span of 1.250 mm. Press <strong>Generate cutting pattern</strong>. Pale is the acrylic that stays. The ground colour is what the cutter removes. Amber is a piece that comes loose once the cut around it is made. A dashed red line is open, and it is left out of the file.</p>
+    <figure class="shot">
+      <img src="docs/stl-pattern.jpg" alt="The cutting drawing of the sample, with arrows on the loose inner disk, the pale acrylic, and the loose colour in the key." />
+      <figcaption>1 is the loose piece. The word loose sits beside it. 2 is acrylic that stays. The ring around the loose piece is cut away. 3 is the same loose colour in the key under the drawing.</figcaption>
+    </figure>
+    <p>Move the slice near a face and generate again when you want to see which openings are only decorative. On the sample, a slice near the top turns the recess into an opening. The middle slice does not.</p>
+    <p>Leave <strong>Gap repair</strong> at 0.05 mm for intricate work. The page lists every gap and waits. Joining a gap closes the outline. Joining a real slot removes that opening.</p>
+    <figure class="shot">
+      <img src="docs/stl-controls.jpg" alt="The view and slice controls, with arrows on Top, the slice slider, Attach loose pieces, and Draw circle." />
+      <figcaption>1 is Top, the flat sheet. 2 is the slice, here in the middle. Gap repair reads 0.05. Bridge width reads 1.5. 3 joins every loose piece at the nearest gap. 4 draws a circle so you can paint the place yourself. Draw box is the same idea with a rectangle. The black button builds the cutting drawing. Export SVG saves it.</figcaption>
+    </figure>
+
+    <h3>Hold a loose piece on</h3>
+    <p><strong>Attach loose pieces</strong> runs a strip of the bridge width from each loose piece to the nearest surrounding material. It starts at 1.5 mm. A wider strip is stronger and closes more of the opening. <strong>Draw box</strong> or <strong>Draw circle</strong> paints the place yourself. Drag the box from corner to corner, or drag the circle from its centre out to the rim. Start on the loose piece and finish on the material that stays. The page asks before the cut changes.</p>
+    <figure class="shot narrow">
+      <img src="docs/stl-ask.jpg" alt="The question Attach this loose piece, with an arrow on the Attach button. The gap is 4.00 mm and the strip is 1.50 mm wide." />
+      <figcaption>Read this before the cut changes. 1 keeps the strip, so the piece remains attached. Leave it loose keeps the original opening.</figcaption>
+    </figure>
+    <p>The strip is material that stays. The exported path walks around it. It is not an extra cut line. <strong>Undo attach</strong> puts that join back. Generate again starts over from the slice.</p>
+    <figure class="shot">
+      <img src="docs/stl-joined.jpg" alt="The sample after the join. The inner disk is held to the ring by a small tab, marked with an arrow." />
+      <figcaption>1 is the strip. The inner disk is no longer loose. The rest of the hole is still an opening. The file is still 50 mm wide.</figcaption>
+    </figure>
+    <p>Press <strong>Export SVG</strong>. Every path is closed. The width and height are millimetres, and 1 unit in the file is 1 mm. In Makera Studio, confirm the imported width matches the size on the page before you cut. The path is the centre of the cut. The file does not offset for a bit. Scale 1 keeps the STL's own millimetres.</p>
 
     <footer>
       <p>Leny's Makera_NC Editor is an independent beta. It is not a Makera product. There are no guarantees. Check every path before you tool. The author takes no responsibility for issues that arise from using this app. Use at your own risk.</p>

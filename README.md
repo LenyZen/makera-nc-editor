@@ -14,9 +14,9 @@ Download or clone this folder, then double-click `index.html`. No install and no
 
 Double-click `giving-you-the-gears.html` for the gear generator. It writes an STL. It does not write an NC file.
 
-Double-click `stl-to-svg.html` to turn an STL into a closed SVG cutting drawing. It sits in this same folder. Nothing needs installing. A loose piece can be joined to the surrounding material with a strip, or with a box or circle drawn on the cutting drawing. Notes for that page are in `stl-to-svg/README.md`.
+Double-click `stl-to-svg.html` to turn an STL into a closed SVG cutting drawing. It sits in this same folder. Nothing needs installing. A loose piece can be joined to the surrounding material with a strip, or with a box or circle drawn on the cutting drawing. Notes for that page are in `stl-to-svg/README.md`. The annotated pictures are in `docs.html`, under Turn an STL into a cutting drawing.
 
-The full guide is `docs.html`. It starts with the same warning. The gear pictures are at the bottom of that page.
+The full guide is `docs.html`. It starts with the same warning. The gear pictures and the STL to SVG pictures are at the bottom of that page.
 
 ## What it does
 
@@ -125,3 +125,19 @@ Press **2:1** for a working pair, then **Solid** and drag the gears. Side, Front
 The other buttons fill in a working herringbone, 90° bevel, rack, internal ring, or worm. Herringbone and helical need a look from the side. A bevel prints standing on its large end. A worm prints lying on its side. One start into 30 teeth is 30:1, and that worm usually will not be turned backward by the wheel.
 
 The annotated pictures for each of those forms are in `docs.html`, under Make a gear. Hover a dotted name in the app when a setting is unfamiliar. A round hole needs a set screw. Polygon with 6 sides is a hex across the flats.
+
+## STL to SVG
+
+Double-click `stl-to-svg.html`. Load an STL, or press Sample ornament. The sample is a 50 mm disk, 1.25 mm thick. Generate cutting pattern at the middle of the sheet. Pale is the acrylic that stays. Amber is a loose piece.
+
+![The sample cutting drawing](docs/stl-pattern.jpg)
+
+*1 is the loose piece. 2 is acrylic that stays. 3 is the loose colour in the key.*
+
+Attach loose pieces joins each loose piece to the nearest surrounding material with a strip. Draw a box or a circle to choose the place. The page asks before the cut changes.
+
+![The inner disk held on by a strip](docs/stl-joined.jpg)
+
+*1 is the strip that stays. The inner disk is no longer loose.*
+
+The rest of the pictures, including the solid, the slice controls, and the question before the cut changes, are in `docs.html`, under Turn an STL into a cutting drawing. Export SVG writes closed paths in millimetres. Confirm the imported width in Makera Studio before you cut.
